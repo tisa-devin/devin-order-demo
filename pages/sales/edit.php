@@ -19,6 +19,13 @@ if ($id) {
     }
 }
 
+$orderDetails = [];
+if ($order_id) {
+    $stmt = $pdo->prepare("SELECT * FROM order_details WHERE order_id = ? ORDER BY line_no");
+    $stmt->execute([$order_id]);
+    $orderDetails = $stmt->fetchAll();
+}
+
 $orderData = null;
 if ($order_id && !$sale) {
     $stmt = $pdo->prepare("SELECT o.*, c.name as customer_name FROM orders o JOIN customers c ON o.customer_id = c.id WHERE o.id = ? AND o.status != 'cancelled'");
@@ -161,6 +168,59 @@ $completedOrders = $stmt->fetchAll();
             </div>
         </div>
     </div>
+    
+    <?php if (!empty($orderDetails)): ?>
+    <div class="card mb-4">
+        <div class="card-header">受注明細</div>
+        <div class="card-body">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>No.</th>
+                        <th>品名</th>
+                        <th class="text-end">数量</th>
+                        <th>単位</th>
+                        <th class="text-end">単価</th>
+                        <th class="text-end">金額</th>
+                        <th>税率</th>
+                        <th>備考</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($orderDetails as $d): ?>
+                    <tr>
+                        <td><?= $d['line_no'] ?></td>
+                        <td><?= h($d['item_name']) ?></td>
+                        <td class="text-end"><?= formatNumber($d['quantity']) ?></td>
+                        <td><?= h($d['unit']) ?></td>
+                        <td class="text-end">&yen;<?= formatNumber($d['unit_price']) ?></td>
+                        <td class="text-end">&yen;<?= formatNumber($d['amount']) ?></td>
+                        <td><?= $d['tax_rate'] ?>%</td>
+                        <td><?= h($d['notes']) ?></td>
+                    </tr>
+                    <?php endforeach; ?>
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="5" class="text-end"><strong>小計</strong></td>
+                        <td class="text-end"><strong>&yen;<?= formatNumber(($sale['total_amount'] ?? 0) - ($sale['tax_amount'] ?? 0)) ?></strong></td>
+                        <td colspan="2"></td>
+                    </tr>
+                    <tr>
+                        <td colspan="5" class="text-end"><strong>消費税</strong></td>
+                        <td class="text-end"><strong>&yen;<?= formatNumber($sale['tax_amount'] ?? 0) ?></strong></td>
+                        <td colspan="2"></td>
+                    </tr>
+                    <tr>
+                        <td colspan="5" class="text-end"><strong>合計（税込）</strong></td>
+                        <td class="text-end"><strong>&yen;<?= formatNumber($sale['total_amount'] ?? 0) ?></strong></td>
+                        <td colspan="2"></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+    <?php endif; ?>
     
     <div class="d-flex gap-2">
         <button type="submit" class="btn btn-primary">保存</button>
