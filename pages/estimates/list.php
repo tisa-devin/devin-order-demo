@@ -92,9 +92,9 @@ $statusLabels = [
                     </td>
                     <td>
                         <a href="edit.php?id=<?= $estimate['id'] ?>" class="btn btn-sm btn-outline-primary btn-action">編集</a>
-                        <a href="/reports/estimate.php?id=<?= $estimate['id'] ?>" class="btn btn-sm btn-outline-secondary btn-action" target="_blank">印刷</a>
-                        <?php if ($estimate['status'] !== 'accepted'): ?>
-                        <a href="/pages/orders/edit.php?from_estimate=<?= $estimate['id'] ?>" class="btn btn-sm btn-outline-success btn-action">受注変換</a>
+                                                <a href="<?= BASE_PATH ?>/reports/estimate.php?id=<?= $estimate['id'] ?>" class="btn btn-sm btn-outline-secondary btn-action" target="_blank">印刷</a>
+                                                <?php if ($estimate['status'] !== 'accepted'): ?>
+                                                <a href="<?= BASE_PATH ?>/pages/orders/edit.php?from_estimate=<?= $estimate['id'] ?>" class="btn btn-sm btn-outline-success btn-action">受注変換</a>
                         <?php endif; ?>
                     </td>
                 </tr>

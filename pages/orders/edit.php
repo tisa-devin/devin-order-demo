@@ -270,7 +270,7 @@ $purchaseStatusLabels = [
     <div class="d-flex gap-2">
         <button type="submit" class="btn btn-primary">保存</button>
         <?php if ($id): ?>
-        <a href="/pages/purchases/edit.php?order_id=<?= $id ?>" class="btn btn-outline-info">発注作成</a>
+        <a href="<?= BASE_PATH ?>/pages/purchases/edit.php?order_id=<?= $id ?>" class="btn btn-outline-info">発注作成</a>
         <button type="button" class="btn btn-outline-danger" onclick="if(confirm('削除しますか？')){document.getElementById('deleteForm').submit();}">削除</button>
         <?php endif; ?>
     </div>

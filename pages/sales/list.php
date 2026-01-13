@@ -175,9 +175,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         </td>
                         <td>
                             <a href="edit.php?id=<?= $sale['id'] ?>" class="btn btn-sm btn-outline-primary btn-action">編集</a>
-                            <a href="/reports/invoice.php?id=<?= $sale['id'] ?>" class="btn btn-sm btn-outline-secondary btn-action" target="_blank">請求書</a>
-                            <a href="/reports/acceptance.php?id=<?= $sale['id'] ?>" class="btn btn-sm btn-outline-secondary btn-action" target="_blank">検収書</a>
-                            <a href="/reports/sales_slip.php?id=<?= $sale['id'] ?>" class="btn btn-sm btn-outline-secondary btn-action" target="_blank">伝票</a>
+                                                        <a href="<?= BASE_PATH ?>/reports/invoice.php?id=<?= $sale['id'] ?>" class="btn btn-sm btn-outline-secondary btn-action" target="_blank">請求書</a>
+                                                        <a href="<?= BASE_PATH ?>/reports/acceptance.php?id=<?= $sale['id'] ?>" class="btn btn-sm btn-outline-secondary btn-action" target="_blank">検収書</a>
+                                                        <a href="<?= BASE_PATH ?>/reports/sales_slip.php?id=<?= $sale['id'] ?>" class="btn btn-sm btn-outline-secondary btn-action" target="_blank">伝票</a>
                         </td>
                     </tr>
                     <?php endforeach; ?>

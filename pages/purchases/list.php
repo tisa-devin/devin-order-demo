@@ -93,7 +93,7 @@ $statusLabels = [
                     <td><?= formatDate($purchase['received_date']) ?></td>
                     <td>
                         <a href="edit.php?id=<?= $purchase['id'] ?>" class="btn btn-sm btn-outline-primary btn-action">編集</a>
-                        <a href="/reports/purchase.php?id=<?= $purchase['id'] ?>" class="btn btn-sm btn-outline-secondary btn-action" target="_blank">印刷</a>
+                        <a href="<?= BASE_PATH ?>/reports/purchase.php?id=<?= $purchase['id'] ?>" class="btn btn-sm btn-outline-secondary btn-action" target="_blank">印刷</a>
                         <?php if ($purchase['status'] === 'ordered'): ?>
                         <form method="post" action="receive.php" style="display:inline">
                             <input type="hidden" name="id" value="<?= $purchase['id'] ?>">

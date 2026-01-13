@@ -86,7 +86,7 @@ $pendingPurchases = $stmt->fetchAll();
                         <tbody>
                             <?php foreach ($pendingOrders as $order): ?>
                             <tr>
-                                <td><a href="/pages/orders/edit.php?id=<?= $order['id'] ?>"><?= h($order['order_no']) ?></a></td>
+                                <td><a href="<?= BASE_PATH ?>/pages/orders/edit.php?id=<?= $order['id'] ?>"><?= h($order['order_no']) ?></a></td>
                                 <td><?= h($order['customer_name']) ?></td>
                                 <td><?= formatDate($order['delivery_date']) ?></td>
                                 <td class="text-end">&yen;<?= formatNumber($order['total_amount']) ?></td>
