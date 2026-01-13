@@ -1,5 +1,6 @@
 <?php
 define('DB_PATH', __DIR__ . '/../data/database.sqlite');
+define('BASE_PATH', '/devin-order-demo-main');
 
 function getDB(): PDO {
     static $pdo = null;

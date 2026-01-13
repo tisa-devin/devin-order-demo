@@ -165,9 +165,9 @@ $completedOrders = $stmt->fetchAll();
     <div class="d-flex gap-2">
         <button type="submit" class="btn btn-primary">保存</button>
         <?php if ($id): ?>
-        <a href="/reports/invoice.php?id=<?= $id ?>" class="btn btn-outline-secondary" target="_blank">請求書印刷</a>
-        <a href="/reports/acceptance.php?id=<?= $id ?>" class="btn btn-outline-secondary" target="_blank">検収書印刷</a>
-        <a href="/reports/sales_slip.php?id=<?= $id ?>" class="btn btn-outline-secondary" target="_blank">売上伝票印刷</a>
+                <a href="<?= BASE_PATH ?>/reports/invoice.php?id=<?= $id ?>" class="btn btn-outline-secondary" target="_blank">請求書印刷</a>
+                <a href="<?= BASE_PATH ?>/reports/acceptance.php?id=<?= $id ?>" class="btn btn-outline-secondary" target="_blank">検収書印刷</a>
+                <a href="<?= BASE_PATH ?>/reports/sales_slip.php?id=<?= $id ?>" class="btn btn-outline-secondary" target="_blank">売上伝票印刷</a>
         <button type="button" class="btn btn-outline-danger" onclick="if(confirm('削除しますか？')){document.getElementById('deleteForm').submit();}">削除</button>
         <?php endif; ?>
     </div>

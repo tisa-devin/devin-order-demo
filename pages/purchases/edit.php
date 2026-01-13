@@ -283,7 +283,7 @@ $orders = $stmt->fetchAll();
     <div class="d-flex gap-2">
         <button type="submit" class="btn btn-primary">保存</button>
         <?php if ($id): ?>
-        <a href="/reports/purchase.php?id=<?= $id ?>" class="btn btn-outline-secondary" target="_blank">発注書印刷</a>
+        <a href="<?= BASE_PATH ?>/reports/purchase.php?id=<?= $id ?>" class="btn btn-outline-secondary" target="_blank">発注書印刷</a>
         <button type="button" class="btn btn-outline-danger" onclick="if(confirm('削除しますか？')){document.getElementById('deleteForm').submit();}">削除</button>
         <?php endif; ?>
     </div>

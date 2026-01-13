@@ -39,34 +39,34 @@ function formatDate($date): string {
 <body>
 <nav class="navbar navbar-expand-lg navbar-dark bg-primary mb-4 no-print">
     <div class="container">
-        <a class="navbar-brand" href="/index.php">受発注・売上管理</a>
+        <a class="navbar-brand" href="<?= BASE_PATH ?>/index.php">受発注・売上管理</a>
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
             <span class="navbar-toggler-icon"></span>
         </button>
         <div class="collapse navbar-collapse" id="navbarNav">
             <ul class="navbar-nav">
                 <li class="nav-item">
-                    <a class="nav-link" href="/index.php">ダッシュボード</a>
+                    <a class="nav-link" href="<?= BASE_PATH ?>/index.php">ダッシュボード</a>
                 </li>
                 <li class="nav-item dropdown">
                     <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">マスタ</a>
                     <ul class="dropdown-menu">
-                        <li><a class="dropdown-item" href="/pages/masters/customers.php">顧客マスタ</a></li>
-                        <li><a class="dropdown-item" href="/pages/masters/suppliers.php">仕入先マスタ</a></li>
-                        <li><a class="dropdown-item" href="/pages/masters/accounts.php">勘定科目マスタ</a></li>
+                        <li><a class="dropdown-item" href="<?= BASE_PATH ?>/pages/masters/customers.php">顧客マスタ</a></li>
+                        <li><a class="dropdown-item" href="<?= BASE_PATH ?>/pages/masters/suppliers.php">仕入先マスタ</a></li>
+                        <li><a class="dropdown-item" href="<?= BASE_PATH ?>/pages/masters/accounts.php">勘定科目マスタ</a></li>
                     </ul>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="/pages/estimates/list.php">見積管理</a>
+                    <a class="nav-link" href="<?= BASE_PATH ?>/pages/estimates/list.php">見積管理</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="/pages/orders/list.php">受注管理</a>
+                    <a class="nav-link" href="<?= BASE_PATH ?>/pages/orders/list.php">受注管理</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="/pages/purchases/list.php">発注管理</a>
+                    <a class="nav-link" href="<?= BASE_PATH ?>/pages/purchases/list.php">発注管理</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="/pages/sales/list.php">売上管理</a>
+                    <a class="nav-link" href="<?= BASE_PATH ?>/pages/sales/list.php">売上管理</a>
                 </li>
             </ul>
         </div>

@@ -92,9 +92,9 @@ $statusLabels = [
                     </td>
                     <td>
                         <a href="edit.php?id=<?= $order['id'] ?>" class="btn btn-sm btn-outline-primary btn-action">編集</a>
-                        <a href="/pages/purchases/edit.php?order_id=<?= $order['id'] ?>" class="btn btn-sm btn-outline-info btn-action">発注</a>
-                        <?php if ($order['status'] === 'completed'): ?>
-                        <a href="/pages/sales/edit.php?order_id=<?= $order['id'] ?>" class="btn btn-sm btn-outline-success btn-action">売上</a>
+                                                <a href="<?= BASE_PATH ?>/pages/purchases/edit.php?order_id=<?= $order['id'] ?>" class="btn btn-sm btn-outline-info btn-action">発注</a>
+                                                <?php if ($order['status'] === 'completed'): ?>
+                                                <a href="<?= BASE_PATH ?>/pages/sales/edit.php?order_id=<?= $order['id'] ?>" class="btn btn-sm btn-outline-success btn-action">売上</a>
                         <?php endif; ?>
                     </td>
                 </tr>
