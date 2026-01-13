@@ -181,32 +181,25 @@ function initializeDatabase(): void {
 
 function getNextNumber(string $type): string {
     $pdo = getDB();
-    $pdo->beginTransaction();
-    try {
-        $stmt = $pdo->prepare("UPDATE sequences SET current_value = current_value + 1 WHERE name = ?");
-        $stmt->execute([$type]);
-        
-        $stmt = $pdo->prepare("SELECT current_value FROM sequences WHERE name = ?");
-        $stmt->execute([$type]);
-        $row = $stmt->fetch();
-        
-        $pdo->commit();
-        
-        $prefixes = [
-            'estimate' => 'EST',
-            'order' => 'ORD',
-            'purchase' => 'PUR',
-            'sales' => 'SLS',
-            'invoice' => 'INV',
-            'acceptance' => 'ACC'
-        ];
-        
-        $prefix = $prefixes[$type] ?? 'NUM';
-        return $prefix . '-' . str_pad($row['current_value'], 6, '0', STR_PAD_LEFT);
-    } catch (Exception $e) {
-        $pdo->rollBack();
-        throw $e;
-    }
+    
+    $stmt = $pdo->prepare("UPDATE sequences SET current_value = current_value + 1 WHERE name = ?");
+    $stmt->execute([$type]);
+    
+    $stmt = $pdo->prepare("SELECT current_value FROM sequences WHERE name = ?");
+    $stmt->execute([$type]);
+    $row = $stmt->fetch();
+    
+    $prefixes = [
+        'estimate' => 'EST',
+        'order' => 'ORD',
+        'purchase' => 'PUR',
+        'sales' => 'SLS',
+        'invoice' => 'INV',
+        'acceptance' => 'ACC'
+    ];
+    
+    $prefix = $prefixes[$type] ?? 'NUM';
+    return $prefix . '-' . str_pad($row['current_value'], 6, '0', STR_PAD_LEFT);
 }
 
 if (php_sapi_name() === 'cli' && basename(__FILE__) === basename($argv[0])) {
