@@ -21,7 +21,7 @@ if ($id) {
 
 $orderData = null;
 if ($order_id && !$sale) {
-    $stmt = $pdo->prepare("SELECT o.*, c.name as customer_name FROM orders o JOIN customers c ON o.customer_id = c.id WHERE o.id = ? AND o.status = 'completed'");
+    $stmt = $pdo->prepare("SELECT o.*, c.name as customer_name FROM orders o JOIN customers c ON o.customer_id = c.id WHERE o.id = ? AND o.status != 'cancelled'");
     $stmt->execute([$order_id]);
     $orderData = $stmt->fetch();
     
@@ -87,7 +87,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$stmt = $pdo->query("SELECT o.id, o.order_no, o.total_amount, o.tax_amount, o.customer_id, c.name as customer_name FROM orders o JOIN customers c ON o.customer_id = c.id WHERE o.status = 'completed' ORDER BY o.order_date DESC");
+$stmt = $pdo->query("SELECT o.id, o.order_no, o.total_amount, o.tax_amount, o.customer_id, c.name as customer_name FROM orders o JOIN customers c ON o.customer_id = c.id WHERE o.status != 'cancelled' ORDER BY o.order_date DESC");
 $completedOrders = $stmt->fetchAll();
 ?>
 
