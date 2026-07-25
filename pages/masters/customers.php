@@ -76,7 +76,21 @@ $customers = $stmt->fetchAll();
         <?= $editCustomer ? '顧客編集' : '顧客登録' ?>
     </div>
     <div class="card-body">
-        <form method="post">
+        <div class="border rounded p-3 mb-3 bg-light">
+            <div class="fw-bold mb-2"><i class="bi bi-camera"></i> 名刺から読み取り</div>
+            <div class="row align-items-end">
+                <div class="col-md-6 mb-2">
+                    <label class="form-label">名刺画像（カメラ撮影または画像選択）</label>
+                    <input type="file" id="businessCardImage" class="form-control" accept="image/*" capture="environment">
+                </div>
+                <div class="col-md-3 mb-2">
+                    <button type="button" id="scanBusinessCardBtn" class="btn btn-outline-primary">読み取り</button>
+                </div>
+            </div>
+            <div id="scanResult" class="mt-2"></div>
+            <div class="form-text">読み取った内容は下のフォームに反映されます。顧客コードは自動入力されません。内容を確認・修正してから登録してください。</div>
+        </div>
+        <form method="post" id="customerForm">
             <input type="hidden" name="action" value="<?= $editCustomer ? 'update' : 'create' ?>">
             <?php if ($editCustomer): ?>
             <input type="hidden" name="id" value="<?= $editCustomer['id'] ?>">
@@ -158,5 +172,55 @@ $customers = $stmt->fetchAll();
         </table>
     </div>
 </div>
+
+<script>
+document.getElementById('scanBusinessCardBtn').addEventListener('click', async function () {
+    const input = document.getElementById('businessCardImage');
+    const result = document.getElementById('scanResult');
+    const button = this;
+
+    if (!input.files || input.files.length === 0) {
+        result.innerHTML = '<div class="alert alert-warning py-2 mb-0">名刺画像を選択してください</div>';
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('image', input.files[0]);
+
+    button.disabled = true;
+    result.innerHTML = '<div class="text-muted"><span class="spinner-border spinner-border-sm"></span> 読み取り中...</div>';
+
+    try {
+        const response = await fetch('scan_business_card.php', { method: 'POST', body: formData });
+        const data = await response.json().catch(() => null);
+
+        if (!response.ok || !data || data.error) {
+            const message = (data && data.error) ? data.error : ('読み取りに失敗しました（HTTP ' + response.status + '）');
+            result.innerHTML = '<div class="alert alert-danger py-2 mb-0"></div>';
+            result.firstChild.textContent = message;
+            return;
+        }
+
+        const form = document.getElementById('customerForm');
+        const mapping = { name: data.company_name, postal_code: data.postal_code, address: data.address, tel: data.tel };
+        const filled = [];
+        for (const [field, value] of Object.entries(mapping)) {
+            if (value) {
+                form.elements[field].value = value;
+                filled.push(field);
+            }
+        }
+
+        result.innerHTML = filled.length > 0
+            ? '<div class="alert alert-success py-2 mb-0">読み取りが完了しました。内容を確認してください。</div>'
+            : '<div class="alert alert-warning py-2 mb-0">名刺から情報を抽出できませんでした</div>';
+    } catch (e) {
+        result.innerHTML = '<div class="alert alert-danger py-2 mb-0"></div>';
+        result.firstChild.textContent = '通信エラーが発生しました: ' + e.message;
+    } finally {
+        button.disabled = false;
+    }
+});
+</script>
 
 <?php require_once __DIR__ . '/../../includes/footer.php'; ?>

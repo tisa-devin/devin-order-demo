@@ -1,0 +1,6 @@
+<?php
+// このファイルを config.php にコピーして値を設定してください。
+// 環境変数 OPENAI_API_KEY が設定されている場合はそちらが優先されます。
+
+define('OPENAI_API_KEY_CONFIG', '');
+define('OPENAI_MODEL_CONFIG', 'gpt-4o');
