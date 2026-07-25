@@ -1,6 +1,8 @@
 <?php
-$pageTitle = '発注登録・編集';
-require_once __DIR__ . '/../../includes/header.php';
+require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../config/init_db.php';
+
+initializeDatabase();
 
 $pdo = getDB();
 $message = '';
@@ -124,6 +126,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 }
+
+$pageTitle = '発注登録・編集';
+require_once __DIR__ . '/../../includes/header.php';
 
 $stmt = $pdo->query("SELECT id, code, name FROM suppliers ORDER BY code");
 $suppliers = $stmt->fetchAll();
