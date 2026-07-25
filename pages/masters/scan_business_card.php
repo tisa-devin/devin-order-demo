@@ -10,6 +10,17 @@ function respondError(string $message, int $status = 400): void {
     exit;
 }
 
+function parseIniBytes($value): int {
+    $value = trim((string)$value);
+    $bytes = (int)$value;
+    switch (strtolower(substr($value, -1))) {
+        case 'g': $bytes *= 1024; // fallthrough
+        case 'm': $bytes *= 1024; // fallthrough
+        case 'k': $bytes *= 1024;
+    }
+    return $bytes;
+}
+
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     respondError('POSTメソッドでリクエストしてください', 405);
 }
@@ -20,6 +31,11 @@ if ($apiKey === '') {
 }
 
 if (!isset($_FILES['image']) || !is_array($_FILES['image'])) {
+    // post_max_size 超過時は $_POST/$_FILES ごと空になる
+    $postMax = parseIniBytes(ini_get('post_max_size'));
+    if (empty($_POST) && $postMax > 0 && (int)($_SERVER['CONTENT_LENGTH'] ?? 0) > $postMax) {
+        respondError('画像サイズが大きすぎます（' . ini_get('post_max_size') . 'まで）');
+    }
     respondError('画像が送信されていません');
 }
 

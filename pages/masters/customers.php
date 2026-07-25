@@ -174,6 +174,26 @@ $customers = $stmt->fetchAll();
 </div>
 
 <script>
+const BUSINESS_CARD_MAX_EDGE = 1600;
+const BUSINESS_CARD_JPEG_QUALITY = 0.85;
+
+// スマホの高解像度写真をそのまま送るとサイズ上限に引っかかるため、送信前に縮小する。
+async function shrinkImage(file) {
+    const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
+    const scale = Math.min(1, BUSINESS_CARD_MAX_EDGE / Math.max(bitmap.width, bitmap.height));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(bitmap.width * scale);
+    canvas.height = Math.round(bitmap.height * scale);
+    canvas.getContext('2d').drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    bitmap.close();
+
+    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', BUSINESS_CARD_JPEG_QUALITY));
+    if (!blob) {
+        throw new Error('画像の変換に失敗しました');
+    }
+    return new File([blob], 'business_card.jpg', { type: 'image/jpeg' });
+}
+
 document.getElementById('scanBusinessCardBtn').addEventListener('click', async function () {
     const input = document.getElementById('businessCardImage');
     const result = document.getElementById('scanResult');
@@ -184,13 +204,21 @@ document.getElementById('scanBusinessCardBtn').addEventListener('click', async f
         return;
     }
 
-    const formData = new FormData();
-    formData.append('image', input.files[0]);
-
     button.disabled = true;
-    result.innerHTML = '<div class="text-muted"><span class="spinner-border spinner-border-sm"></span> 読み取り中...</div>';
+    result.innerHTML = '<div class="text-muted"><span class="spinner-border spinner-border-sm"></span> 画像を縮小中...</div>';
 
     try {
+        let image;
+        try {
+            image = await shrinkImage(input.files[0]);
+        } catch (e) {
+            image = input.files[0];
+        }
+
+        const formData = new FormData();
+        formData.append('image', image);
+
+        result.innerHTML = '<div class="text-muted"><span class="spinner-border spinner-border-sm"></span> 読み取り中...</div>';
         const response = await fetch('scan_business_card.php', { method: 'POST', body: formData });
         const data = await response.json().catch(() => null);
 
