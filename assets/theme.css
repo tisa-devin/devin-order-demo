@@ -1,0 +1,70 @@
+:root,
+[data-theme="blue"] {
+    --app-primary: #0d6efd;
+    --app-primary-rgb: 13, 110, 253;
+}
+
+[data-theme="teal"] {
+    --app-primary: #0f8b8d;
+    --app-primary-rgb: 15, 139, 141;
+}
+
+[data-theme="indigo"] {
+    --app-primary: #4b3f9e;
+    --app-primary-rgb: 75, 63, 158;
+}
+
+[data-theme="green"] {
+    --app-primary: #1a7f4b;
+    --app-primary-rgb: 26, 127, 75;
+}
+
+[data-theme="orange"] {
+    --app-primary: #c9611a;
+    --app-primary-rgb: 201, 97, 26;
+}
+
+[data-theme="slate"] {
+    --app-primary: #475569;
+    --app-primary-rgb: 71, 85, 105;
+}
+
+:root {
+    --bs-primary: var(--app-primary);
+    --bs-primary-rgb: var(--app-primary-rgb);
+    --bs-link-color: var(--app-primary);
+    --bs-link-color-rgb: var(--app-primary-rgb);
+    --bs-link-hover-color: color-mix(in srgb, var(--app-primary) 80%, black);
+}
+
+.btn-primary {
+    --bs-btn-bg: var(--app-primary);
+    --bs-btn-border-color: var(--app-primary);
+    --bs-btn-hover-bg: color-mix(in srgb, var(--app-primary) 85%, black);
+    --bs-btn-hover-border-color: color-mix(in srgb, var(--app-primary) 80%, black);
+    --bs-btn-active-bg: color-mix(in srgb, var(--app-primary) 75%, black);
+    --bs-btn-active-border-color: color-mix(in srgb, var(--app-primary) 70%, black);
+    --bs-btn-disabled-bg: var(--app-primary);
+    --bs-btn-disabled-border-color: var(--app-primary);
+}
+
+.btn-outline-primary {
+    --bs-btn-color: var(--app-primary);
+    --bs-btn-border-color: var(--app-primary);
+    --bs-btn-hover-bg: var(--app-primary);
+    --bs-btn-hover-border-color: var(--app-primary);
+    --bs-btn-active-bg: color-mix(in srgb, var(--app-primary) 85%, black);
+    --bs-btn-active-border-color: color-mix(in srgb, var(--app-primary) 80%, black);
+    --bs-btn-disabled-color: var(--app-primary);
+    --bs-btn-disabled-border-color: var(--app-primary);
+}
+
+.theme-swatch {
+    display: inline-block;
+    width: 0.85rem;
+    height: 0.85rem;
+    margin-right: 0.5rem;
+    border: 1px solid rgba(0, 0, 0, 0.2);
+    border-radius: 50%;
+    vertical-align: -1px;
+}
