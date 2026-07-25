@@ -1,6 +1,8 @@
 <?php
-$pageTitle = '売上登録・編集';
-require_once __DIR__ . '/../../includes/header.php';
+require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../config/init_db.php';
+
+initializeDatabase();
 
 $pdo = getDB();
 $message = '';
@@ -93,6 +95,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 }
+
+$pageTitle = '売上登録・編集';
+require_once __DIR__ . '/../../includes/header.php';
 
 $stmt = $pdo->query("SELECT o.id, o.order_no, o.total_amount, o.tax_amount, o.customer_id, c.name as customer_name FROM orders o JOIN customers c ON o.customer_id = c.id WHERE o.status != 'cancelled' ORDER BY o.order_date DESC");
 $completedOrders = $stmt->fetchAll();
