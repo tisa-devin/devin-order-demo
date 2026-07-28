@@ -378,7 +378,11 @@ document.getElementById('extractBtn').addEventListener('click', async function (
     this.disabled = true;
     status.textContent = '抽出中...';
     try {
-        const res = await fetch('extract_items.php', { method: 'POST', body: formData });
+        // 認証情報付きURL（user:pass@host）配下では相対fetchが拒否されるため取り除く
+        const endpoint = new URL('extract_items.php', location.href);
+        endpoint.username = '';
+        endpoint.password = '';
+        const res = await fetch(endpoint.toString(), { method: 'POST', body: formData });
         const data = await res.json();
         if (!res.ok) {
             status.textContent = 'エラー: ' + (data.error || res.status);
