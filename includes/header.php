@@ -30,6 +30,7 @@ function formatDate($date): string {
         body.theme-blue { --theme-color: #0d6efd; --theme-color-hover: #0b5ed7; }
         body.theme-green { --theme-color: #198754; --theme-color-hover: #157347; }
         body.theme-orange { --theme-color: #fd7e14; --theme-color-hover: #e8690b; }
+        body.theme-pink { --theme-color: #d63384; --theme-color-hover: #b02a6c; }
         body.theme-dark { --theme-color: #212529; --theme-color-hover: #1a1e21; }
         .bg-primary { background-color: var(--theme-color) !important; }
         .btn-primary {
@@ -99,6 +100,7 @@ function formatDate($date): string {
                     <option value="blue">ブルー</option>
                     <option value="green">グリーン</option>
                     <option value="orange">オレンジ</option>
+                    <option value="pink">ピンク</option>
                     <option value="dark">ダーク</option>
                 </select>
             </div>
@@ -107,7 +109,7 @@ function formatDate($date): string {
 </nav>
 <script>
     (function () {
-        var themes = ['blue', 'green', 'orange', 'dark'];
+        var themes = ['blue', 'green', 'orange', 'pink', 'dark'];
         var select = document.getElementById('themeColorSelect');
         if (!select) return;
         var current = localStorage.getItem('themeColor');
