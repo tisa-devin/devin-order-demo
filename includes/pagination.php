@@ -33,7 +33,7 @@ function fetchPaginated(PDO $pdo, string $selectColumns, string $fromWhere, stri
 }
 
 function paginationUrl(int $page): string {
-    return 'list.php?' . http_build_query(array_merge($_GET, ['page' => $page]));
+    return basename($_SERVER['PHP_SELF']) . '?' . http_build_query(array_merge($_GET, ['page' => $page]));
 }
 
 function renderPagination(array $pagination): void {
