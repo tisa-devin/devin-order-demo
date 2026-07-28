@@ -31,27 +31,37 @@ $salesAccount = $pdo->query("SELECT code, tax_class_code FROM accounts WHERE nam
 $salesCode = $salesAccount['code'] ?? '4110';
 $taxClassCode = $salesAccount['tax_class_code'] ?? '0060';
 
-$csvHeader = ['売上日', '売上番号', '請求書番号', '受注番号', '顧客コード', '顧客名', '顧客勘定科目コード', '借方科目コード', '貸方科目コード', '税区分コード', '税抜金額', '消費税額', '合計金額', '摘要'];
+$columnDefs = [
+    'sales_date' => ['label' => '売上日', 'value' => fn($s) => date('Y/m/d', strtotime($s['sales_date']))],
+    'sales_no' => ['label' => '売上番号', 'value' => fn($s) => $s['sales_no']],
+    'invoice_no' => ['label' => '請求書番号', 'value' => fn($s) => $s['invoice_no'] ?? ''],
+    'order_no' => ['label' => '受注番号', 'value' => fn($s) => $s['order_no']],
+    'customer_code' => ['label' => '顧客コード', 'value' => fn($s) => $s['customer_code'] ?? ''],
+    'customer_name' => ['label' => '顧客名', 'value' => fn($s) => $s['customer_name']],
+    'customer_accounting_code' => ['label' => '顧客勘定科目コード', 'value' => fn($s) => $s['customer_accounting_code'] ?? ''],
+    'debit_code' => ['label' => '借方科目コード', 'value' => fn($s) => $receivableCode],
+    'credit_code' => ['label' => '貸方科目コード', 'value' => fn($s) => $salesCode],
+    'tax_class_code' => ['label' => '税区分コード', 'value' => fn($s) => $taxClassCode],
+    'amount_excluding_tax' => ['label' => '税抜金額', 'value' => fn($s) => (int)$s['total_amount'] - (int)$s['tax_amount']],
+    'tax_amount' => ['label' => '消費税額', 'value' => fn($s) => (int)$s['tax_amount']],
+    'total_amount' => ['label' => '合計金額', 'value' => fn($s) => (int)$s['total_amount']],
+    'note' => ['label' => '摘要', 'value' => fn($s) => "売上計上 {$s['sales_no']} {$s['customer_name']}"],
+];
 
-function csvRow(array $sale, string $receivableCode, string $salesCode, string $taxClassCode): array {
-    $total = (int)$sale['total_amount'];
-    $tax = (int)$sale['tax_amount'];
-    return [
-        date('Y/m/d', strtotime($sale['sales_date'])),
-        $sale['sales_no'],
-        $sale['invoice_no'] ?? '',
-        $sale['order_no'],
-        $sale['customer_code'] ?? '',
-        $sale['customer_name'],
-        $sale['customer_accounting_code'] ?? '',
-        $receivableCode,
-        $salesCode,
-        $taxClassCode,
-        $total - $tax,
-        $tax,
-        $total,
-        "売上計上 {$sale['sales_no']} {$sale['customer_name']}",
-    ];
+$requestedColumns = $_POST['columns'] ?? $_GET['columns'] ?? null;
+$selectedColumns = is_array($requestedColumns)
+    ? array_values(array_intersect(array_keys($columnDefs), $requestedColumns))
+    : array_keys($columnDefs);
+if (!$selectedColumns) {
+    $selectedColumns = array_keys($columnDefs);
+}
+
+function csvHeader(array $columnDefs, array $selectedColumns): array {
+    return array_map(fn($key) => $columnDefs[$key]['label'], $selectedColumns);
+}
+
+function csvRow(array $sale, array $columnDefs, array $selectedColumns): array {
+    return array_map(fn($key) => $columnDefs[$key]['value']($sale), $selectedColumns);
 }
 
 if (($_POST['action'] ?? '') === 'download') {
@@ -72,9 +82,9 @@ if (($_POST['action'] ?? '') === 'download') {
     $out = fopen('php://output', 'w');
     // Excel で UTF-8 と認識させるための BOM
     fwrite($out, "\xEF\xBB\xBF");
-    fputcsv($out, $csvHeader, ',', '"', '');
+    fputcsv($out, csvHeader($columnDefs, $selectedColumns), ',', '"', '');
     foreach ($rows as $row) {
-        fputcsv($out, csvRow($row, $receivableCode, $salesCode, $taxClassCode), ',', '"', '');
+        fputcsv($out, csvRow($row, $columnDefs, $selectedColumns), ',', '"', '');
     }
     fclose($out);
     exit;
@@ -117,7 +127,19 @@ $totalAmount = (int)$totalStmt->fetchColumn();
             </div>
             <div class="col-md-3">
                 <button type="submit" class="btn btn-outline-primary">絞り込み</button>
-                <a href="export.php" class="btn btn-outline-secondary">クリア</a>
+                <a href="export.php?columns_reset=1" class="btn btn-outline-secondary">クリア</a>
+            </div>
+            <div class="col-12">
+                <label class="form-label">出力する列</label>
+                <div class="d-flex flex-wrap gap-3" id="columnChecks">
+                    <?php foreach ($columnDefs as $key => $def): ?>
+                    <div class="form-check">
+                        <input type="checkbox" class="form-check-input" id="col_<?= h($key) ?>" name="columns[]" value="<?= h($key) ?>" <?= in_array($key, $selectedColumns, true) ? 'checked' : '' ?>>
+                        <label class="form-check-label" for="col_<?= h($key) ?>"><?= h($def['label']) ?></label>
+                    </div>
+                    <?php endforeach; ?>
+                </div>
+                <div class="form-text">選択した列構成はブラウザに保存され、次回アクセス時の初期値になります。</div>
             </div>
         </form>
     </div>
@@ -130,6 +152,9 @@ $totalAmount = (int)$totalStmt->fetchColumn();
             <input type="hidden" name="date_from" value="<?= h($date_from) ?>">
             <input type="hidden" name="date_to" value="<?= h($date_to) ?>">
             <input type="hidden" name="exported" value="<?= h($exported) ?>">
+            <?php foreach ($selectedColumns as $key): ?>
+            <input type="hidden" name="columns[]" value="<?= h($key) ?>">
+            <?php endforeach; ?>
             <div class="form-check mb-0">
                 <input type="checkbox" class="form-check-input" id="markExported" name="mark_exported" value="1" checked>
                 <label class="form-check-label" for="markExported">出力済にする</label>
@@ -144,7 +169,7 @@ $totalAmount = (int)$totalStmt->fetchColumn();
             <table class="table table-striped table-sm">
                 <thead>
                     <tr>
-                        <?php foreach ($csvHeader as $col): ?>
+                        <?php foreach (csvHeader($columnDefs, $selectedColumns) as $col): ?>
                         <th><?= h($col) ?></th>
                         <?php endforeach; ?>
                     </tr>
@@ -152,13 +177,13 @@ $totalAmount = (int)$totalStmt->fetchColumn();
                 <tbody>
                     <?php foreach ($salesList as $sale): ?>
                     <tr>
-                        <?php foreach (csvRow($sale, $receivableCode, $salesCode, $taxClassCode) as $value): ?>
+                        <?php foreach (csvRow($sale, $columnDefs, $selectedColumns) as $value): ?>
                         <td><?= h((string)$value) ?></td>
                         <?php endforeach; ?>
                     </tr>
                     <?php endforeach; ?>
                     <?php if (empty($salesList)): ?>
-                    <tr><td colspan="<?= count($csvHeader) ?>" class="text-center text-muted">対象データがありません</td></tr>
+                    <tr><td colspan="<?= count($selectedColumns) ?>" class="text-center text-muted">対象データがありません</td></tr>
                     <?php endif; ?>
                 </tbody>
             </table>
@@ -167,5 +192,34 @@ $totalAmount = (int)$totalStmt->fetchColumn();
         <?php renderPagination($pagination); ?>
     </div>
 </div>
+
+<script>
+(function () {
+    var STORAGE_KEY = 'salesExportColumns';
+    var params = new URLSearchParams(location.search);
+    var checks = Array.from(document.querySelectorAll('#columnChecks input[name="columns[]"]'));
+
+    if (params.has('columns_reset')) {
+        localStorage.removeItem(STORAGE_KEY);
+    } else if (!params.has('columns[]')) {
+        var saved = null;
+        try { saved = JSON.parse(localStorage.getItem(STORAGE_KEY)); } catch (e) { saved = null; }
+        if (Array.isArray(saved) && saved.length) {
+            // 保存済みの列構成でプレビューを再表示する
+            params.delete('columns[]');
+            saved.forEach(function (key) { params.append('columns[]', key); });
+            location.replace('export.php?' + params.toString());
+            return;
+        }
+    }
+
+    checks.forEach(function (cb) {
+        cb.addEventListener('change', function () {
+            var selected = checks.filter(function (c) { return c.checked; }).map(function (c) { return c.value; });
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(selected));
+        });
+    });
+})();
+</script>
 
 <?php require_once __DIR__ . '/../../includes/footer.php'; ?>
