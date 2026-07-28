@@ -34,9 +34,65 @@ function formatDate($date): string {
             .no-print { display: none !important; }
             .container { max-width: 100% !important; }
         }
+
+        [data-theme="green"] {
+            --bs-primary: #198754;
+            --bs-primary-rgb: 25, 135, 84;
+        }
+        [data-theme="green"] .navbar.bg-primary { background-color: #198754 !important; }
+        [data-theme="green"] .btn-primary {
+            --bs-btn-bg: #198754;
+            --bs-btn-border-color: #198754;
+            --bs-btn-hover-bg: #157347;
+            --bs-btn-hover-border-color: #146c43;
+            --bs-btn-active-bg: #146c43;
+            --bs-btn-active-border-color: #13653f;
+            --bs-btn-disabled-bg: #198754;
+            --bs-btn-disabled-border-color: #198754;
+        }
+
+        [data-theme="orange"] {
+            --bs-primary: #fd7e14;
+            --bs-primary-rgb: 253, 126, 20;
+        }
+        [data-theme="orange"] .navbar.bg-primary { background-color: #fd7e14 !important; }
+        [data-theme="orange"] .btn-primary {
+            --bs-btn-bg: #fd7e14;
+            --bs-btn-border-color: #fd7e14;
+            --bs-btn-hover-bg: #e06c0d;
+            --bs-btn-hover-border-color: #d5670c;
+            --bs-btn-active-bg: #d5670c;
+            --bs-btn-active-border-color: #c9610b;
+            --bs-btn-disabled-bg: #fd7e14;
+            --bs-btn-disabled-border-color: #fd7e14;
+        }
+
+        [data-theme="dark"] {
+            --bs-primary: #212529;
+            --bs-primary-rgb: 33, 37, 41;
+        }
+        [data-theme="dark"] .navbar.bg-primary { background-color: #212529 !important; }
+        [data-theme="dark"] .btn-primary {
+            --bs-btn-bg: #212529;
+            --bs-btn-border-color: #212529;
+            --bs-btn-hover-bg: #34383c;
+            --bs-btn-hover-border-color: #424649;
+            --bs-btn-active-bg: #424649;
+            --bs-btn-active-border-color: #4d5154;
+            --bs-btn-disabled-bg: #212529;
+            --bs-btn-disabled-border-color: #212529;
+        }
+
+        .theme-select { width: auto; }
     </style>
 </head>
 <body>
+<script>
+    (function () {
+        var t = localStorage.getItem('themeColor') || 'blue';
+        document.body.setAttribute('data-theme', t);
+    })();
+</script>
 <nav class="navbar navbar-expand-lg navbar-dark bg-primary mb-4 no-print">
     <div class="container">
         <a class="navbar-brand" href="<?= BASE_PATH ?>/index.php">受発注・売上管理</a>
@@ -69,7 +125,26 @@ function formatDate($date): string {
                     <a class="nav-link" href="<?= BASE_PATH ?>/pages/sales/list.php">売上管理</a>
                 </li>
             </ul>
+            <div class="ms-auto no-print">
+                <select id="themeColorSelect" class="form-select form-select-sm theme-select" aria-label="テーマカラー">
+                    <option value="blue">ブルー</option>
+                    <option value="green">グリーン</option>
+                    <option value="orange">オレンジ</option>
+                    <option value="dark">ダーク</option>
+                </select>
+            </div>
         </div>
     </div>
 </nav>
+<script>
+    (function () {
+        var select = document.getElementById('themeColorSelect');
+        if (!select) return;
+        select.value = localStorage.getItem('themeColor') || 'blue';
+        select.addEventListener('change', function () {
+            localStorage.setItem('themeColor', select.value);
+            document.body.setAttribute('data-theme', select.value);
+        });
+    })();
+</script>
 <div class="container">
