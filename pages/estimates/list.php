@@ -7,25 +7,22 @@ $pdo = getDB();
 $search = $_GET['search'] ?? '';
 $status = $_GET['status'] ?? '';
 
-$sql = "SELECT e.*, c.name as customer_name FROM estimates e JOIN customers c ON e.customer_id = c.id WHERE 1=1";
+$where = "FROM estimates e JOIN customers c ON e.customer_id = c.id WHERE 1=1";
 $params = [];
 
 if ($search) {
-    $sql .= " AND (e.estimate_no LIKE ? OR e.subject LIKE ? OR c.name LIKE ?)";
+    $where .= " AND (e.estimate_no LIKE ? OR e.subject LIKE ? OR c.name LIKE ?)";
     $params[] = "%$search%";
     $params[] = "%$search%";
     $params[] = "%$search%";
 }
 if ($status) {
-    $sql .= " AND e.status = ?";
+    $where .= " AND e.status = ?";
     $params[] = $status;
 }
 
-$sql .= " ORDER BY e.estimate_date DESC, e.id DESC";
-
-$stmt = $pdo->prepare($sql);
-$stmt->execute($params);
-$estimates = $stmt->fetchAll();
+$pagination = fetchPaginated($pdo, 'e.*, c.name as customer_name', $where, 'e.estimate_date DESC, e.id DESC', $params);
+$estimates = $pagination['rows'];
 
 $statusLabels = [
     'draft' => ['label' => '下書き', 'class' => 'secondary'],
@@ -104,6 +101,8 @@ $statusLabels = [
                 <?php endif; ?>
             </tbody>
         </table>
+
+        <?php renderPagination($pagination); ?>
     </div>
 </div>
 

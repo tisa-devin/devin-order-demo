@@ -7,7 +7,7 @@ $pdo = getDB();
 $search = $_GET['search'] ?? '';
 $status = $_GET['status'] ?? '';
 
-$where = " FROM orders o JOIN customers c ON o.customer_id = c.id WHERE 1=1";
+$where = "FROM orders o JOIN customers c ON o.customer_id = c.id WHERE 1=1";
 $params = [];
 
 if ($search) {
@@ -21,29 +21,8 @@ if ($status) {
     $params[] = $status;
 }
 
-$perPage = 20;
-$page = max(1, (int)($_GET['page'] ?? 1));
-
-$countStmt = $pdo->prepare("SELECT COUNT(*)" . $where);
-$countStmt->execute($params);
-$totalCount = (int)$countStmt->fetchColumn();
-$totalPages = max(1, (int)ceil($totalCount / $perPage));
-if ($page > $totalPages) $page = $totalPages;
-$offset = ($page - 1) * $perPage;
-
-$stmt = $pdo->prepare("SELECT o.*, c.name as customer_name" . $where . " ORDER BY o.order_date DESC, o.id DESC LIMIT ? OFFSET ?");
-foreach ($params as $i => $param) {
-    $stmt->bindValue($i + 1, $param);
-}
-$stmt->bindValue(count($params) + 1, $perPage, PDO::PARAM_INT);
-$stmt->bindValue(count($params) + 2, $offset, PDO::PARAM_INT);
-$stmt->execute();
-$orders = $stmt->fetchAll();
-
-function orderPageUrl(int $page): string {
-    $query = array_merge($_GET, ['page' => $page]);
-    return 'list.php?' . http_build_query($query);
-}
+$pagination = fetchPaginated($pdo, 'o.*, c.name as customer_name', $where, 'o.order_date DESC, o.id DESC', $params);
+$orders = $pagination['rows'];
 
 $statusLabels = [
     'ordered' => ['label' => '受注', 'class' => 'primary'],
@@ -123,43 +102,7 @@ $statusLabels = [
             </tbody>
         </table>
 
-        <?php if ($totalCount > 0): ?>
-        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-            <div class="text-muted">
-                全 <?= formatNumber($totalCount) ?> 件中 <?= formatNumber($offset + 1) ?>～<?= formatNumber(min($offset + $perPage, $totalCount)) ?> 件を表示
-            </div>
-            <?php if ($totalPages > 1): ?>
-            <nav aria-label="ページネーション">
-                <ul class="pagination mb-0">
-                    <li class="page-item <?= $page <= 1 ? 'disabled' : '' ?>">
-                        <a class="page-link" href="<?= h(orderPageUrl($page - 1)) ?>">前へ</a>
-                    </li>
-                    <?php
-                    $start = max(1, $page - 2);
-                    $end = min($totalPages, $start + 4);
-                    $start = max(1, $end - 4);
-                    ?>
-                    <?php if ($start > 1): ?>
-                    <li class="page-item"><a class="page-link" href="<?= h(orderPageUrl(1)) ?>">1</a></li>
-                    <?php if ($start > 2): ?><li class="page-item disabled"><span class="page-link">…</span></li><?php endif; ?>
-                    <?php endif; ?>
-                    <?php for ($i = $start; $i <= $end; $i++): ?>
-                    <li class="page-item <?= $i === $page ? 'active' : '' ?>">
-                        <a class="page-link" href="<?= h(orderPageUrl($i)) ?>"><?= $i ?></a>
-                    </li>
-                    <?php endfor; ?>
-                    <?php if ($end < $totalPages): ?>
-                    <?php if ($end < $totalPages - 1): ?><li class="page-item disabled"><span class="page-link">…</span></li><?php endif; ?>
-                    <li class="page-item"><a class="page-link" href="<?= h(orderPageUrl($totalPages)) ?>"><?= $totalPages ?></a></li>
-                    <?php endif; ?>
-                    <li class="page-item <?= $page >= $totalPages ? 'disabled' : '' ?>">
-                        <a class="page-link" href="<?= h(orderPageUrl($page + 1)) ?>">次へ</a>
-                    </li>
-                </ul>
-            </nav>
-            <?php endif; ?>
-        </div>
-        <?php endif; ?>
+        <?php renderPagination($pagination); ?>
     </div>
 </div>
 

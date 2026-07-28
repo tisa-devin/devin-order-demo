@@ -16,6 +16,8 @@ function formatDate($date): string {
     if (empty($date)) return '';
     return date('Y/m/d', strtotime($date));
 }
+
+require_once __DIR__ . '/pagination.php';
 ?>
 <!DOCTYPE html>
 <html lang="ja">
