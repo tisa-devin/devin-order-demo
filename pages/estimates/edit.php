@@ -172,6 +172,20 @@ $customers = $stmt->fetchAll();
             <button type="button" class="btn btn-sm btn-success" onclick="addRow()"><i class="bi bi-plus"></i> 行追加</button>
         </div>
         <div class="card-body">
+            <div class="border rounded p-3 mb-3 bg-light">
+                <label class="form-label mb-1" for="aiPrompt"><i class="bi bi-stars"></i> AIで明細を作成</label>
+                <div class="row g-2 align-items-start">
+                    <div class="col-md-9">
+                        <textarea id="aiPrompt" class="form-control form-control-sm" rows="2" placeholder="例：システム設計と開発、テストで100万円くらい"></textarea>
+                    </div>
+                    <div class="col-md-3">
+                        <button type="button" id="aiGenerateBtn" class="btn btn-sm btn-outline-primary">AIで明細を作成</button>
+                        <div id="aiGenerateStatus" class="small text-muted mt-1"></div>
+                    </div>
+                </div>
+                <div class="form-text">AIが生成した参考値です。内容を確認してください</div>
+            </div>
+
             <table class="table" id="detailsTable">
                 <thead>
                     <tr>
@@ -301,6 +315,75 @@ function attachEvents(row) {
 
 document.querySelectorAll('.detail-row').forEach(attachEvents);
 calculateTotals();
+
+(function () {
+    var btn = document.getElementById('aiGenerateBtn');
+    var promptEl = document.getElementById('aiPrompt');
+    var status = document.getElementById('aiGenerateStatus');
+
+    function fillRow(row, item) {
+        row.querySelector('input[name$="[item_name]"]').value = item.item_name;
+        row.querySelector('.qty').value = item.quantity;
+        row.querySelector('input[name$="[unit]"]').value = item.unit;
+        row.querySelector('.price').value = item.unit_price;
+        row.querySelector('.tax').value = String(item.tax_rate);
+    }
+
+    btn.addEventListener('click', async function () {
+        var prompt = promptEl.value.trim();
+        if (!prompt) {
+            status.textContent = '要件を入力してください';
+            status.className = 'small text-danger mt-1';
+            return;
+        }
+
+        btn.disabled = true;
+        status.textContent = '生成中...';
+        status.className = 'small text-muted mt-1';
+
+        try {
+            // Basic認証付きURL配下では認証情報入りURLの fetch が拒否されるため除去する
+            var endpoint = new URL('generate_items.php', location.href);
+            endpoint.username = '';
+            endpoint.password = '';
+
+            var formData = new FormData();
+            formData.append('prompt', prompt);
+
+            var res = await fetch(endpoint.toString(), { method: 'POST', body: formData });
+            var data = await res.json();
+            if (!res.ok || data.error) {
+                throw new Error(data.error || ('HTTP ' + res.status));
+            }
+            if (!data.items || !data.items.length) {
+                throw new Error('明細を生成できませんでした');
+            }
+
+            var rows = Array.from(document.querySelectorAll('.detail-row')).filter(function (row) {
+                return row.querySelector('input[name$="[item_name]"]').value.trim() === '';
+            });
+
+            data.items.forEach(function (item) {
+                var row = rows.shift();
+                if (!row) {
+                    addRow();
+                    var all = document.querySelectorAll('.detail-row');
+                    row = all[all.length - 1];
+                }
+                fillRow(row, item);
+            });
+
+            calculateTotals();
+            status.textContent = data.items.length + '件の明細を生成しました';
+            status.className = 'small text-success mt-1';
+        } catch (e) {
+            status.textContent = 'エラー: ' + e.message;
+            status.className = 'small text-danger mt-1';
+        } finally {
+            btn.disabled = false;
+        }
+    });
+})();
 </script>
 
 <?php require_once __DIR__ . '/../../includes/footer.php'; ?>
