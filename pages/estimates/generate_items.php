@@ -33,6 +33,7 @@ if (mb_strlen($prompt) > 2000) {
 $schema = [
     'type' => 'object',
     'properties' => [
+        'rationale' => ['type' => 'string'],
         'items' => [
             'type' => 'array',
             'items' => [
@@ -49,7 +50,7 @@ $schema = [
             ],
         ],
     ],
-    'required' => ['items'],
+    'required' => ['rationale', 'items'],
     'additionalProperties' => false,
 ];
 
@@ -59,7 +60,7 @@ $payload = [
     'messages' => [
         [
             'role' => 'system',
-            'content' => '日本のシステム開発会社の見積明細を作成するアシスタント。自然文の要件から見積明細を3〜8行程度に分解し、品名（item_name）、数量（quantity、1以上の整数）、単位（unit、「式」「人月」「ヶ月」など）、税抜単価（unit_price、整数の円）、税率（tax_rate、8または10。軽減税率対象でなければ10）を出力する。金額の目安が示されている場合は、明細の合計（数量×単価の総和）が税抜でその金額に概ね一致するようにする。合計行・小計行・消費税行は明細に含めない。',
+            'content' => '日本のシステム開発会社の見積明細を作成するアシスタント。自然文の要件から見積明細を3〜8行程度に分解し、品名（item_name）、数量（quantity、1以上の整数）、単位（unit、「式」「人月」「ヶ月」など）、税抜単価（unit_price、整数の円）、税率（tax_rate、8または10。軽減税率対象でなければ10）を出力する。金額の目安が示されている場合は、明細の合計（数量×単価の総和）が税抜でその金額に概ね一致するようにする。合計行・小計行・消費税行は明細に含めない。さらに rationale に、なぜその分け方・金額にしたかの根拠を日本語120文字程度の平文で簡潔に記載する。',
         ],
         ['role' => 'user', 'content' => $prompt],
     ],
@@ -94,7 +95,7 @@ if ($httpCode !== 200) {
 }
 
 $parsed = json_decode($body['choices'][0]['message']['content'] ?? '', true);
-if (!is_array($parsed) || !isset($parsed['items']) || !is_array($parsed['items'])) {
+if (!is_array($parsed) || !is_array($parsed['items'] ?? null)) {
     respondError('生成結果を解釈できませんでした', 502);
 }
 
@@ -114,4 +115,7 @@ foreach ($parsed['items'] as $item) {
     ];
 }
 
-echo json_encode(['items' => $items], JSON_UNESCAPED_UNICODE);
+echo json_encode([
+    'items' => $items,
+    'rationale' => trim((string)($parsed['rationale'] ?? '')),
+], JSON_UNESCAPED_UNICODE);

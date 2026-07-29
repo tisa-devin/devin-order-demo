@@ -244,6 +244,10 @@ $customers = $stmt->fetchAll();
                     </tr>
                 </tfoot>
             </table>
+
+            <div id="aiRationale" class="alert alert-info py-2 px-3 small mb-0 d-none">
+                <strong>AIの見積もり方（参考）:</strong> <span id="aiRationaleText"></span>
+            </div>
         </div>
     </div>
     
@@ -374,6 +378,15 @@ calculateTotals();
             });
 
             calculateTotals();
+
+            var rationaleBox = document.getElementById('aiRationale');
+            if (data.rationale) {
+                document.getElementById('aiRationaleText').textContent = data.rationale;
+                rationaleBox.classList.remove('d-none');
+            } else {
+                rationaleBox.classList.add('d-none');
+            }
+
             status.textContent = data.items.length + '件の明細を生成しました';
             status.className = 'small text-success mt-1';
         } catch (e) {
