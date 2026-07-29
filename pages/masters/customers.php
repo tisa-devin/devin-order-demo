@@ -63,6 +63,11 @@ function parseCustomerCsv(string $path, PDO $pdo): array {
             continue;
         }
 
+        if (count($fields) < count($columnIndex)) {
+            $errors[] = ['line' => $lineNo, 'reason' => '列数が不足しています（' . count($columnIndex) . '列必要、' . count($fields) . '列）'];
+            continue;
+        }
+
         $row = [];
         foreach (array_keys(CSV_COLUMNS) as $key) {
             $row[$key] = isset($columnIndex[$key]) ? trim((string)($fields[$columnIndex[$key]] ?? '')) : '';
