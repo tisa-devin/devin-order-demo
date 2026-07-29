@@ -4,37 +4,13 @@ require_once __DIR__ . '/../../includes/header.php';
 
 $pdo = getDB();
 
-$search = $_GET['search'] ?? '';
-$customer_name = $_GET['customer_name'] ?? '';
-$date_from = $_GET['date_from'] ?? '';
-$date_to = $_GET['date_to'] ?? '';
-$status = $_GET['status'] ?? '';
-
-$where = "FROM orders o JOIN customers c ON o.customer_id = c.id WHERE 1=1";
-$params = [];
-
-if ($search) {
-    $where .= " AND (o.order_no LIKE ? OR o.subject LIKE ? OR c.name LIKE ?)";
-    $params[] = "%$search%";
-    $params[] = "%$search%";
-    $params[] = "%$search%";
-}
-if ($customer_name) {
-    $where .= " AND c.name LIKE ?";
-    $params[] = "%$customer_name%";
-}
-if ($date_from) {
-    $where .= " AND o.order_date >= ?";
-    $params[] = $date_from;
-}
-if ($date_to) {
-    $where .= " AND o.order_date <= ?";
-    $params[] = $date_to;
-}
-if ($status) {
-    $where .= " AND o.status = ?";
-    $params[] = $status;
-}
+[$filterWhere, $params] = listFilterCondition([
+    'keyword' => ['o.order_no', 'o.subject', 'c.name'],
+    'customer' => 'c.name',
+    'date' => 'o.order_date',
+    'status' => 'o.status',
+]);
+$where = "FROM orders o JOIN customers c ON o.customer_id = c.id WHERE 1=1" . $filterWhere;
 
 $pagination = fetchPaginated($pdo, 'o.*, c.name as customer_name', $where, 'o.order_date DESC, o.id DESC', $params);
 $orders = $pagination['rows'];
@@ -52,41 +28,7 @@ $statusLabels = [
     <a href="edit.php" class="btn btn-primary"><i class="bi bi-plus"></i> 新規受注</a>
 </div>
 
-<div class="card mb-4">
-    <div class="card-body">
-        <form method="get" class="row g-3 align-items-end">
-            <div class="col-md-4">
-                <label class="form-label mb-1">キーワード</label>
-                <input type="text" name="search" class="form-control" placeholder="受注番号・件名・顧客名で検索" value="<?= h($search) ?>">
-            </div>
-            <div class="col-md-3">
-                <label class="form-label mb-1">顧客名（部分一致）</label>
-                <input type="text" name="customer_name" class="form-control" placeholder="顧客名" value="<?= h($customer_name) ?>">
-            </div>
-            <div class="col-md-3">
-                <label class="form-label mb-1">ステータス</label>
-                <select name="status" class="form-select">
-                    <option value="">全てのステータス</option>
-                    <?php foreach ($statusLabels as $key => $val): ?>
-                    <option value="<?= $key ?>" <?= $status === $key ? 'selected' : '' ?>><?= $val['label'] ?></option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
-            <div class="col-md-3">
-                <label class="form-label mb-1">受注日（自）</label>
-                <input type="date" name="date_from" class="form-control" value="<?= h($date_from) ?>">
-            </div>
-            <div class="col-md-3">
-                <label class="form-label mb-1">受注日（至）</label>
-                <input type="date" name="date_to" class="form-control" value="<?= h($date_to) ?>">
-            </div>
-            <div class="col-md-3">
-                <button type="submit" class="btn btn-outline-primary">検索</button>
-                <a href="list.php" class="btn btn-outline-secondary">条件クリア</a>
-            </div>
-        </form>
-    </div>
-</div>
+<?php renderListFilter($statusLabels, '受注番号・件名・顧客名で検索', '受注日'); ?>
 
 <div class="card">
     <div class="card-body">
