@@ -13,6 +13,8 @@ const CSV_COLUMNS = [
     'postal_code' => ['postal_code', '郵便番号'],
     'address' => ['address', '住所'],
     'tel' => ['tel', '電話番号'],
+    'contact_name' => ['contact_name', '担当者名', '担当者'],
+    'email' => ['email', 'メールアドレス', 'メール'],
     'accounting_code' => ['accounting_code', '会計用コード', '勘定科目コード'],
 ];
 
@@ -110,6 +112,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $postal_code = trim($_POST['postal_code'] ?? '');
         $address = trim($_POST['address'] ?? '');
         $tel = trim($_POST['tel'] ?? '');
+        $contact_name = trim($_POST['contact_name'] ?? '');
+        $email = trim($_POST['email'] ?? '');
         $accounting_code = trim($_POST['accounting_code'] ?? '');
         
         if (empty($code) || empty($name)) {
@@ -117,12 +121,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             try {
                 if ($action === 'create') {
-                    $stmt = $pdo->prepare("INSERT INTO customers (code, name, postal_code, address, tel, accounting_code) VALUES (?, ?, ?, ?, ?, ?)");
-                    $stmt->execute([$code, $name, $postal_code, $address, $tel, $accounting_code]);
+                    $stmt = $pdo->prepare("INSERT INTO customers (code, name, postal_code, address, tel, contact_name, email, accounting_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+                    $stmt->execute([$code, $name, $postal_code, $address, $tel, $contact_name, $email, $accounting_code]);
                     $message = '顧客を登録しました';
                 } else {
-                    $stmt = $pdo->prepare("UPDATE customers SET code = ?, name = ?, postal_code = ?, address = ?, tel = ?, accounting_code = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?");
-                    $stmt->execute([$code, $name, $postal_code, $address, $tel, $accounting_code, $id]);
+                    $stmt = $pdo->prepare("UPDATE customers SET code = ?, name = ?, postal_code = ?, address = ?, tel = ?, contact_name = ?, email = ?, accounting_code = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?");
+                    $stmt->execute([$code, $name, $postal_code, $address, $tel, $contact_name, $email, $accounting_code, $id]);
                     $message = '顧客を更新しました';
                 }
             } catch (PDOException $e) {
@@ -157,8 +161,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             try {
                 $pdo->beginTransaction();
                 $existsStmt = $pdo->prepare("SELECT COUNT(*) FROM customers WHERE code = ?");
-                $insertStmt = $pdo->prepare("INSERT INTO customers (code, name, postal_code, address, tel, accounting_code) VALUES (?, ?, ?, ?, ?, ?)");
-                $updateStmt = $pdo->prepare("UPDATE customers SET name = ?, postal_code = ?, address = ?, tel = ?, accounting_code = ?, updated_at = CURRENT_TIMESTAMP WHERE code = ?");
+                $insertStmt = $pdo->prepare("INSERT INTO customers (code, name, postal_code, address, tel, contact_name, email, accounting_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+                $updateStmt = $pdo->prepare("UPDATE customers SET name = ?, postal_code = ?, address = ?, tel = ?, contact_name = ?, email = ?, accounting_code = ?, updated_at = CURRENT_TIMESTAMP WHERE code = ?");
                 foreach ($decoded as $row) {
                     $values = [];
                     foreach (array_keys(CSV_COLUMNS) as $key) {
@@ -169,10 +173,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
                     $existsStmt->execute([$values['code']]);
                     if ((int)$existsStmt->fetchColumn() > 0) {
-                        $updateStmt->execute([$values['name'], $values['postal_code'], $values['address'], $values['tel'], $values['accounting_code'], $values['code']]);
+                        $updateStmt->execute([$values['name'], $values['postal_code'], $values['address'], $values['tel'], $values['contact_name'], $values['email'], $values['accounting_code'], $values['code']]);
                         $updated++;
                     } else {
-                        $insertStmt->execute([$values['code'], $values['name'], $values['postal_code'], $values['address'], $values['tel'], $values['accounting_code']]);
+                        $insertStmt->execute([$values['code'], $values['name'], $values['postal_code'], $values['address'], $values['tel'], $values['contact_name'], $values['email'], $values['accounting_code']]);
                         $inserted++;
                     }
                 }
@@ -243,6 +247,8 @@ $customers = $stmt->fetchAll();
                             <th>郵便番号</th>
                             <th>住所</th>
                             <th>電話番号</th>
+                            <th>担当者名</th>
+                            <th>メールアドレス</th>
                             <th>会計用コード</th>
                         </tr>
                     </thead>
@@ -256,6 +262,8 @@ $customers = $stmt->fetchAll();
                             <td><?= h($row['postal_code']) ?></td>
                             <td><?= h($row['address']) ?></td>
                             <td><?= h($row['tel']) ?></td>
+                            <td><?= h($row['contact_name']) ?></td>
+                            <td><?= h($row['email']) ?></td>
                             <td><?= h($row['accounting_code']) ?></td>
                         </tr>
                         <?php endforeach; ?>
@@ -293,7 +301,7 @@ $customers = $stmt->fetchAll();
                 </div>
             </form>
             <p class="text-muted small mb-0 mt-2">
-                1行目はヘッダー行（<code>code, name, postal_code, address, tel, accounting_code</code>、または 顧客コード, 顧客名, 郵便番号, 住所, 電話番号, 会計用コード）。
+                1行目はヘッダー行（<code>code, name, postal_code, address, tel, contact_name, email, accounting_code</code>、または 顧客コード, 顧客名, 郵便番号, 住所, 電話番号, 担当者名, メールアドレス, 会計用コード）。
                 <code>code</code> をキーに、既存なら更新・なければ新規登録します。文字コードは UTF-8 / Shift_JIS のどちらでも取り込めます。
             </p>
         <?php endif; ?>
@@ -316,7 +324,7 @@ $customers = $stmt->fetchAll();
                     <span id="cardExtractStatus" class="ms-2 small text-muted"></span>
                 </div>
             </div>
-            <div class="form-text">名刺を撮影または選択すると、会社名・郵便番号・住所・電話番号を下のフォームに自動入力します。顧客コードは自動入力されません。内容を確認・修正のうえ登録ボタンを押してください。</div>
+            <div class="form-text">名刺を撮影または選択すると、会社名・郵便番号・住所・電話番号・担当者名・メールアドレスを下のフォームに自動入力します。顧客コードは自動入力されません。内容を確認・修正のうえ登録ボタンを押してください。</div>
         </div>
 
         <form method="post" id="customerForm">
@@ -352,6 +360,16 @@ $customers = $stmt->fetchAll();
                     <input type="text" name="tel" class="form-control" value="<?= h($editCustomer['tel'] ?? '') ?>">
                 </div>
             </div>
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">担当者名</label>
+                    <input type="text" name="contact_name" class="form-control" value="<?= h($editCustomer['contact_name'] ?? '') ?>">
+                </div>
+                <div class="col-md-5 mb-3">
+                    <label class="form-label">メールアドレス</label>
+                    <input type="email" name="email" class="form-control" value="<?= h($editCustomer['email'] ?? '') ?>">
+                </div>
+            </div>
             <button type="submit" class="btn btn-primary"><?= $editCustomer ? '更新' : '登録' ?></button>
             <?php if ($editCustomer): ?>
             <a href="customers.php" class="btn btn-secondary">キャンセル</a>
@@ -371,6 +389,8 @@ $customers = $stmt->fetchAll();
                     <th>郵便番号</th>
                     <th>住所</th>
                     <th>電話番号</th>
+                    <th>担当者名</th>
+                    <th>メールアドレス</th>
                     <th>会計用コード</th>
                     <th>操作</th>
                 </tr>
@@ -383,6 +403,8 @@ $customers = $stmt->fetchAll();
                     <td><?= h($customer['postal_code']) ?></td>
                     <td><?= h($customer['address']) ?></td>
                     <td><?= h($customer['tel']) ?></td>
+                    <td><?= h($customer['contact_name']) ?></td>
+                    <td><?= h($customer['email']) ?></td>
                     <td><?= h($customer['accounting_code']) ?></td>
                     <td>
                         <a href="?edit=<?= $customer['id'] ?>" class="btn btn-sm btn-outline-primary btn-action">編集</a>
@@ -395,7 +417,7 @@ $customers = $stmt->fetchAll();
                 </tr>
                 <?php endforeach; ?>
                 <?php if (empty($customers)): ?>
-                <tr><td colspan="7" class="text-center text-muted">データがありません</td></tr>
+                <tr><td colspan="9" class="text-center text-muted">データがありません</td></tr>
                 <?php endif; ?>
             </tbody>
         </table>
@@ -435,7 +457,7 @@ $customers = $stmt->fetchAll();
             }
 
             var filled = [];
-            ['name', 'postal_code', 'address', 'tel'].forEach(function (key) {
+            ['name', 'postal_code', 'address', 'tel', 'contact_name', 'email'].forEach(function (key) {
                 var value = (data.customer && data.customer[key]) ? data.customer[key] : '';
                 var field = document.querySelector('#customerForm input[name="' + key + '"]');
                 if (field && value) {

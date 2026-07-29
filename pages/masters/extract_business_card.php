@@ -1,6 +1,6 @@
 <?php
 /**
- * 名刺画像から会社名・郵便番号・住所・電話番号を抽出する AJAX エンドポイント。
+ * 名刺画像から会社名・郵便番号・住所・電話番号・担当者名・メールアドレスを抽出する AJAX エンドポイント。
  * 抽出結果を返すだけで、DBへの保存は行わない。
  */
 require_once __DIR__ . '/../../config/env.php';
@@ -45,8 +45,10 @@ $schema = [
         'postal_code' => ['type' => 'string'],
         'address' => ['type' => 'string'],
         'tel' => ['type' => 'string'],
+        'contact_name' => ['type' => 'string'],
+        'email' => ['type' => 'string'],
     ],
-    'required' => ['name', 'postal_code', 'address', 'tel'],
+    'required' => ['name', 'postal_code', 'address', 'tel', 'contact_name', 'email'],
     'additionalProperties' => false,
 ];
 
@@ -56,12 +58,12 @@ $payload = [
     'messages' => [
         [
             'role' => 'system',
-            'content' => '名刺画像から取引先情報を抽出するアシスタント。会社名（name）、郵便番号（postal_code、「123-4567」形式、〒記号は含めない）、住所（address、郵便番号を含めない）、電話番号（tel、ハイフン区切り。FAXや携帯しか無い場合を除き代表電話を優先）を読み取る。読み取れない項目は空文字にする。個人名・部署名・役職・メールアドレス・URLは含めない。',
+            'content' => '名刺画像から取引先情報を抽出するアシスタント。会社名（name）、郵便番号（postal_code、「123-4567」形式、〒記号は含めない）、住所（address、郵便番号を含めない）、電話番号（tel、ハイフン区切り。FAXや携帯しか無い場合を除き代表電話を優先）、担当者名（contact_name、氏名のみで部署名・役職・敬称は含めない）、メールアドレス（email）を読み取る。読み取れない項目は空文字にする。会社名に部署名・役職・URLは含めない。',
         ],
         [
             'role' => 'user',
             'content' => [
-                ['type' => 'text', 'text' => 'この名刺から会社名・郵便番号・住所・電話番号を抽出してください。'],
+                ['type' => 'text', 'text' => 'この名刺から会社名・郵便番号・住所・電話番号・担当者名・メールアドレスを抽出してください。'],
                 ['type' => 'image_url', 'image_url' => ['url' => $dataUrl]],
             ],
         ],
@@ -106,6 +108,8 @@ $customer = [
     'postal_code' => trim((string)($parsed['postal_code'] ?? '')),
     'address' => trim((string)($parsed['address'] ?? '')),
     'tel' => trim((string)($parsed['tel'] ?? '')),
+    'contact_name' => trim((string)($parsed['contact_name'] ?? '')),
+    'email' => trim((string)($parsed['email'] ?? '')),
 ];
 $customer['postal_code'] = ltrim($customer['postal_code'], '〒 ');
 
