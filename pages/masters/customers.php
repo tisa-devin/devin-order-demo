@@ -305,7 +305,21 @@ $customers = $stmt->fetchAll();
         <?= $editCustomer ? '顧客編集' : '顧客登録' ?>
     </div>
     <div class="card-body">
-        <form method="post">
+        <div class="border rounded p-3 mb-3 bg-light">
+            <label class="form-label mb-1"><i class="bi bi-camera"></i> 名刺から読み取り</label>
+            <div class="row g-2 align-items-center">
+                <div class="col-md-6">
+                    <input type="file" id="cardImage" class="form-control form-control-sm" accept="image/*" capture="environment">
+                </div>
+                <div class="col-md-6">
+                    <button type="button" id="cardExtractBtn" class="btn btn-sm btn-outline-primary">AIで読み取る</button>
+                    <span id="cardExtractStatus" class="ms-2 small text-muted"></span>
+                </div>
+            </div>
+            <div class="form-text">名刺を撮影または選択すると、会社名・郵便番号・住所・電話番号を下のフォームに自動入力します。顧客コードは自動入力されません。内容を確認・修正のうえ登録ボタンを押してください。</div>
+        </div>
+
+        <form method="post" id="customerForm">
             <input type="hidden" name="action" value="<?= $editCustomer ? 'update' : 'create' ?>">
             <?php if ($editCustomer): ?>
             <input type="hidden" name="id" value="<?= $editCustomer['id'] ?>">
@@ -387,5 +401,64 @@ $customers = $stmt->fetchAll();
         </table>
     </div>
 </div>
+
+<script>
+(function () {
+    var btn = document.getElementById('cardExtractBtn');
+    var input = document.getElementById('cardImage');
+    var status = document.getElementById('cardExtractStatus');
+
+    btn.addEventListener('click', async function () {
+        if (!input.files || !input.files[0]) {
+            status.textContent = '名刺画像を選択してください';
+            status.className = 'ms-2 small text-danger';
+            return;
+        }
+
+        var formData = new FormData();
+        formData.append('image', input.files[0]);
+
+        btn.disabled = true;
+        status.textContent = '読み取り中...';
+        status.className = 'ms-2 small text-muted';
+
+        try {
+            // Basic認証付きURL配下では認証情報入りURLの fetch が拒否されるため除去する
+            var endpoint = new URL('extract_business_card.php', location.href);
+            endpoint.username = '';
+            endpoint.password = '';
+
+            var res = await fetch(endpoint.toString(), { method: 'POST', body: formData });
+            var data = await res.json();
+            if (!res.ok || data.error) {
+                throw new Error(data.error || ('HTTP ' + res.status));
+            }
+
+            var filled = [];
+            ['name', 'postal_code', 'address', 'tel'].forEach(function (key) {
+                var value = (data.customer && data.customer[key]) ? data.customer[key] : '';
+                var field = document.querySelector('#customerForm input[name="' + key + '"]');
+                if (field && value) {
+                    field.value = value;
+                    filled.push(key);
+                }
+            });
+
+            if (filled.length) {
+                status.textContent = '読み取りました（' + filled.length + '項目）。内容を確認して登録してください';
+                status.className = 'ms-2 small text-success';
+            } else {
+                status.textContent = '読み取れる情報がありませんでした';
+                status.className = 'ms-2 small text-danger';
+            }
+        } catch (e) {
+            status.textContent = 'エラー: ' + e.message;
+            status.className = 'ms-2 small text-danger';
+        } finally {
+            btn.disabled = false;
+        }
+    });
+})();
+</script>
 
 <?php require_once __DIR__ . '/../../includes/footer.php'; ?>
