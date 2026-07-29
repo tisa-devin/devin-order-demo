@@ -90,7 +90,9 @@ $pendingPurchases = $stmt->fetchAll();
         <i class="bi bi-bar-chart"></i> 月次売上推移（直近6ヶ月）
     </div>
     <div class="card-body">
-        <canvas id="monthlySalesChart" height="90"></canvas>
+        <div style="position: relative; height: 320px;">
+            <canvas id="monthlySalesChart"></canvas>
+        </div>
     </div>
 </div>
 
@@ -113,6 +115,7 @@ $pendingPurchases = $stmt->fetchAll();
         },
         options: {
             responsive: true,
+            maintainAspectRatio: false,
             plugins: {
                 legend: { display: false },
                 tooltip: { callbacks: { label: function (ctx) { return yen(ctx.parsed.y); } } }
