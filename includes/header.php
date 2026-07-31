@@ -34,9 +34,33 @@ function formatDate($date): string {
             .no-print { display: none !important; }
             .container { max-width: 100% !important; }
         }
+
+        body[data-theme="green"] .navbar.bg-primary { background-color: #198754 !important; }
+        body[data-theme="green"] .btn-primary { background-color: #198754; border-color: #198754; }
+        body[data-theme="green"] .btn-primary:hover,
+        body[data-theme="green"] .btn-primary:focus,
+        body[data-theme="green"] .btn-primary:active { background-color: #146c43; border-color: #13653f; }
+
+        body[data-theme="orange"] .navbar.bg-primary { background-color: #fd7e14 !important; }
+        body[data-theme="orange"] .btn-primary { background-color: #fd7e14; border-color: #fd7e14; }
+        body[data-theme="orange"] .btn-primary:hover,
+        body[data-theme="orange"] .btn-primary:focus,
+        body[data-theme="orange"] .btn-primary:active { background-color: #e96b02; border-color: #dc6502; }
+
+        body[data-theme="dark"] .navbar.bg-primary { background-color: #212529 !important; }
+        body[data-theme="dark"] .btn-primary { background-color: #212529; border-color: #212529; }
+        body[data-theme="dark"] .btn-primary:hover,
+        body[data-theme="dark"] .btn-primary:focus,
+        body[data-theme="dark"] .btn-primary:active { background-color: #101315; border-color: #0a0c0d; }
     </style>
 </head>
-<body>
+<body data-theme="blue">
+<script>
+    (function () {
+        var theme = localStorage.getItem('theme') || 'blue';
+        document.body.setAttribute('data-theme', theme);
+    })();
+</script>
 <nav class="navbar navbar-expand-lg navbar-dark bg-primary mb-4 no-print">
     <div class="container">
         <a class="navbar-brand" href="<?= BASE_PATH ?>/index.php">受発注・売上管理</a>
@@ -69,7 +93,24 @@ function formatDate($date): string {
                     <a class="nav-link" href="<?= BASE_PATH ?>/pages/sales/list.php">売上管理</a>
                 </li>
             </ul>
+            <select id="themeSelector" class="form-select form-select-sm ms-auto" style="width:auto;" aria-label="テーマ選択">
+                <option value="blue">ブルー</option>
+                <option value="green">グリーン</option>
+                <option value="orange">オレンジ</option>
+                <option value="dark">ダーク</option>
+            </select>
         </div>
     </div>
 </nav>
+<script>
+    (function () {
+        var selector = document.getElementById('themeSelector');
+        if (!selector) return;
+        selector.value = localStorage.getItem('theme') || 'blue';
+        selector.addEventListener('change', function () {
+            localStorage.setItem('theme', selector.value);
+            document.body.setAttribute('data-theme', selector.value);
+        });
+    })();
+</script>
 <div class="container">
