@@ -7,25 +7,45 @@ $pdo = getDB();
 $search = $_GET['search'] ?? '';
 $status = $_GET['status'] ?? '';
 
-$sql = "SELECT o.*, c.name as customer_name FROM orders o JOIN customers c ON o.customer_id = c.id WHERE 1=1";
+$where = " WHERE 1=1";
 $params = [];
 
 if ($search) {
-    $sql .= " AND (o.order_no LIKE ? OR o.subject LIKE ? OR c.name LIKE ?)";
+    $where .= " AND (o.order_no LIKE ? OR o.subject LIKE ? OR c.name LIKE ?)";
     $params[] = "%$search%";
     $params[] = "%$search%";
     $params[] = "%$search%";
 }
 if ($status) {
-    $sql .= " AND o.status = ?";
+    $where .= " AND o.status = ?";
     $params[] = $status;
 }
 
-$sql .= " ORDER BY o.order_date DESC, o.id DESC";
+$from = " FROM orders o JOIN customers c ON o.customer_id = c.id" . $where;
+
+$stmt = $pdo->prepare("SELECT COUNT(*)" . $from);
+$stmt->execute($params);
+$totalCount = (int)$stmt->fetchColumn();
+
+$perPage = 20;
+$totalPages = max(1, (int)ceil($totalCount / $perPage));
+$page = max(1, (int)($_GET['page'] ?? 1));
+if ($page > $totalPages) {
+    $page = $totalPages;
+}
+$offset = ($page - 1) * $perPage;
+
+$sql = "SELECT o.*, c.name as customer_name" . $from
+    . " ORDER BY o.order_date DESC, o.id DESC LIMIT $perPage OFFSET $offset";
 
 $stmt = $pdo->prepare($sql);
 $stmt->execute($params);
 $orders = $stmt->fetchAll();
+
+// 検索条件を保持したままページ番号だけを差し替えるURLを生成する
+function pageUrl(int $p): string {
+    return 'list.php?' . http_build_query(array_merge($_GET, ['page' => $p]));
+}
 
 $statusLabels = [
     'ordered' => ['label' => '受注', 'class' => 'primary'],
@@ -104,6 +124,48 @@ $statusLabels = [
                 <?php endif; ?>
             </tbody>
         </table>
+
+        <?php if ($totalCount > 0): ?>
+        <div class="d-flex justify-content-between align-items-center flex-wrap">
+            <div class="text-muted small">
+                全 <?= formatNumber($totalCount) ?> 件中 <?= formatNumber($offset + 1) ?>～<?= formatNumber($offset + count($orders)) ?> 件を表示
+            </div>
+            <?php if ($totalPages > 1): ?>
+            <nav aria-label="ページ送り">
+                <ul class="pagination mb-0">
+                    <li class="page-item <?= $page <= 1 ? 'disabled' : '' ?>">
+                        <a class="page-link" href="<?= h(pageUrl($page - 1)) ?>">前へ</a>
+                    </li>
+                    <?php
+                    $start = max(1, $page - 2);
+                    $end = min($totalPages, $start + 4);
+                    $start = max(1, $end - 4);
+                    ?>
+                    <?php if ($start > 1): ?>
+                    <li class="page-item"><a class="page-link" href="<?= h(pageUrl(1)) ?>">1</a></li>
+                    <?php if ($start > 2): ?>
+                    <li class="page-item disabled"><span class="page-link">…</span></li>
+                    <?php endif; ?>
+                    <?php endif; ?>
+                    <?php for ($i = $start; $i <= $end; $i++): ?>
+                    <li class="page-item <?= $i === $page ? 'active' : '' ?>">
+                        <a class="page-link" href="<?= h(pageUrl($i)) ?>"><?= $i ?></a>
+                    </li>
+                    <?php endfor; ?>
+                    <?php if ($end < $totalPages): ?>
+                    <?php if ($end < $totalPages - 1): ?>
+                    <li class="page-item disabled"><span class="page-link">…</span></li>
+                    <?php endif; ?>
+                    <li class="page-item"><a class="page-link" href="<?= h(pageUrl($totalPages)) ?>"><?= $totalPages ?></a></li>
+                    <?php endif; ?>
+                    <li class="page-item <?= $page >= $totalPages ? 'disabled' : '' ?>">
+                        <a class="page-link" href="<?= h(pageUrl($page + 1)) ?>">次へ</a>
+                    </li>
+                </ul>
+            </nav>
+            <?php endif; ?>
+        </div>
+        <?php endif; ?>
     </div>
 </div>
 
