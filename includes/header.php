@@ -25,11 +25,70 @@ function formatDate($date): string {
     <title><?= h($pageTitle ?? '受発注・売上管理システム') ?></title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <script>
+        // ちらつき防止のため、描画前に保存済みテーマを適用する
+        (function () {
+            var theme = localStorage.getItem('themeColor') || 'blue';
+            document.documentElement.setAttribute('data-theme', theme);
+        })();
+    </script>
     <style>
+        /* テーマカラー定義（data-theme 属性で切替） */
+        html[data-theme="blue"] {
+            --theme-primary: #0d6efd;
+            --theme-primary-hover: #0b5ed7;
+        }
+        html[data-theme="green"] {
+            --theme-primary: #198754;
+            --theme-primary-hover: #157347;
+        }
+        html[data-theme="orange"] {
+            --theme-primary: #fd7e14;
+            --theme-primary-hover: #e8690b;
+        }
+        html[data-theme="dark"] {
+            --theme-primary: #212529;
+            --theme-primary-hover: #1a1e21;
+        }
+        /* 未指定時のフォールバック（デフォルト：ブルー） */
+        html:not([data-theme]) {
+            --theme-primary: #0d6efd;
+            --theme-primary-hover: #0b5ed7;
+        }
+
         .navbar-brand { font-weight: bold; }
         .table th { white-space: nowrap; }
         .btn-action { padding: 0.25rem 0.5rem; font-size: 0.875rem; }
         .status-badge { font-size: 0.75rem; }
+
+        /* ヘッダー背景をテーマ色で上書き */
+        .navbar.bg-primary {
+            background-color: var(--theme-primary) !important;
+        }
+
+        /* 主要ボタンをテーマ色で上書き */
+        .btn-primary {
+            background-color: var(--theme-primary);
+            border-color: var(--theme-primary);
+        }
+        .btn-primary:hover,
+        .btn-primary:focus,
+        .btn-primary:active {
+            background-color: var(--theme-primary-hover);
+            border-color: var(--theme-primary-hover);
+        }
+        .btn-outline-primary {
+            color: var(--theme-primary);
+            border-color: var(--theme-primary);
+        }
+        .btn-outline-primary:hover,
+        .btn-outline-primary:focus,
+        .btn-outline-primary:active {
+            background-color: var(--theme-primary);
+            border-color: var(--theme-primary);
+            color: #fff;
+        }
+
         @media print {
             .no-print { display: none !important; }
             .container { max-width: 100% !important; }
@@ -69,7 +128,31 @@ function formatDate($date): string {
                     <a class="nav-link" href="<?= BASE_PATH ?>/pages/sales/list.php">売上管理</a>
                 </li>
             </ul>
+            <div class="d-flex align-items-center ms-auto">
+                <label for="themeSelect" class="text-white me-2 mb-0">テーマ</label>
+                <select id="themeSelect" class="form-select form-select-sm" style="width: auto;">
+                    <option value="blue">ブルー（現行）</option>
+                    <option value="green">グリーン</option>
+                    <option value="orange">オレンジ</option>
+                    <option value="dark">ダーク</option>
+                </select>
+            </div>
         </div>
     </div>
 </nav>
+<script>
+    // テーマ選択の復元と保存
+    (function () {
+        var select = document.getElementById('themeSelect');
+        if (!select) return;
+        var current = localStorage.getItem('themeColor') || 'blue';
+        select.value = current;
+        document.documentElement.setAttribute('data-theme', current);
+        select.addEventListener('change', function () {
+            var value = select.value;
+            localStorage.setItem('themeColor', value);
+            document.documentElement.setAttribute('data-theme', value);
+        });
+    })();
+</script>
 <div class="container">
