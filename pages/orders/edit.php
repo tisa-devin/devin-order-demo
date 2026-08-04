@@ -205,6 +205,19 @@ $purchaseStatusLabels = [
             <button type="button" class="btn btn-sm btn-success" onclick="addRow()"><i class="bi bi-plus"></i> 行追加</button>
         </div>
         <div class="card-body">
+            <div class="border rounded p-3 mb-3 bg-light">
+                <div class="row g-2 align-items-end">
+                    <div class="col-md-6">
+                        <label class="form-label mb-1"><i class="bi bi-image"></i> 注文書画像から明細を取り込む</label>
+                        <input type="file" id="orderImage" class="form-control form-control-sm" accept="image/*">
+                    </div>
+                    <div class="col-md-6">
+                        <button type="button" id="extractBtn" class="btn btn-sm btn-outline-primary">AIで明細を抽出</button>
+                        <span id="extractStatus" class="ms-2 small text-muted"></span>
+                    </div>
+                </div>
+                <div class="form-text">抽出結果は明細行に追加されるだけです。内容を確認してから「保存」してください。</div>
+            </div>
             <table class="table" id="detailsTable">
                 <thead>
                     <tr>
@@ -338,6 +351,56 @@ function attachEvents(row) {
         el.addEventListener('input', calculateTotals);
     });
 }
+
+function fillLastEmptyOrNewRow(item) {
+    const rows = Array.from(document.querySelectorAll('.detail-row'));
+    let row = rows.find(r => !r.querySelector('input[name$="[item_name]"]').value.trim());
+    if (!row) {
+        addRow();
+        row = document.querySelectorAll('.detail-row')[document.querySelectorAll('.detail-row').length - 1];
+    }
+    row.querySelector('input[name$="[item_name]"]').value = item.item_name;
+    row.querySelector('.qty').value = item.quantity;
+    row.querySelector('input[name$="[unit]"]').value = item.unit;
+    row.querySelector('.price').value = item.unit_price;
+}
+
+document.getElementById('extractBtn').addEventListener('click', async function () {
+    const input = document.getElementById('orderImage');
+    const status = document.getElementById('extractStatus');
+    if (!input.files.length) {
+        status.textContent = '画像を選択してください';
+        return;
+    }
+    const formData = new FormData();
+    formData.append('image', input.files[0]);
+
+    this.disabled = true;
+    status.textContent = '抽出中...';
+    try {
+        // 認証情報付きURL（user:pass@host）配下では相対fetchが拒否されるため取り除く
+        const endpoint = new URL('extract_items.php', location.href);
+        endpoint.username = '';
+        endpoint.password = '';
+        const res = await fetch(endpoint.toString(), { method: 'POST', body: formData });
+        const data = await res.json();
+        if (!res.ok) {
+            status.textContent = 'エラー: ' + (data.error || res.status);
+            return;
+        }
+        if (!data.items.length) {
+            status.textContent = '明細を抽出できませんでした';
+            return;
+        }
+        data.items.forEach(fillLastEmptyOrNewRow);
+        calculateTotals();
+        status.textContent = data.items.length + ' 件を取り込みました（内容を確認して保存してください）';
+    } catch (e) {
+        status.textContent = 'エラー: ' + e.message;
+    } finally {
+        this.disabled = false;
+    }
+});
 
 document.querySelectorAll('.detail-row').forEach(attachEvents);
 calculateTotals();

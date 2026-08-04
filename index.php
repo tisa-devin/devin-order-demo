@@ -12,6 +12,44 @@ $monthlySales = $stmt->fetch()['total'];
 $stmt = $pdo->query("SELECT COUNT(*) as count FROM sales WHERE strftime('%Y-%m', sales_date) = '$currentMonth'");
 $salesCount = $stmt->fetch()['count'];
 
+// 直近6ヶ月（当月を含む）の月次売上
+$monthlyTrend = [];
+for ($i = 5; $i >= 0; $i--) {
+    $month = date('Y-m', strtotime("-$i month", strtotime(date('Y-m') . '-01')));
+    $monthlyTrend[$month] = 0;
+}
+$stmt = $pdo->prepare("
+    SELECT strftime('%Y-%m', sales_date) as month, COALESCE(SUM(total_amount), 0) as total
+    FROM sales
+    WHERE strftime('%Y-%m', sales_date) >= ?
+    GROUP BY month
+");
+$stmt->execute([array_key_first($monthlyTrend)]);
+foreach ($stmt->fetchAll() as $row) {
+    if (array_key_exists($row['month'], $monthlyTrend)) {
+        $monthlyTrend[$row['month']] = (int)$row['total'];
+    }
+}
+$trendLabels = array_map(fn($m) => date('Y年n月', strtotime($m . '-01')), array_keys($monthlyTrend));
+$trendValues = array_values($monthlyTrend);
+
+// 受注ステータス別の件数
+$orderStatusLabels = [
+    'ordered' => ['label' => '受注', 'color' => '#0d6efd'],
+    'in_progress' => ['label' => '進行中', 'color' => '#ffc107'],
+    'completed' => ['label' => '完了', 'color' => '#198754'],
+    'cancelled' => ['label' => 'キャンセル', 'color' => '#dc3545'],
+];
+$statusCounts = array_fill_keys(array_keys($orderStatusLabels), 0);
+foreach ($pdo->query("SELECT status, COUNT(*) as count FROM orders GROUP BY status") as $row) {
+    if (array_key_exists($row['status'], $statusCounts)) {
+        $statusCounts[$row['status']] = (int)$row['count'];
+    }
+}
+$statusChartLabels = array_values(array_map(fn($s) => $s['label'], $orderStatusLabels));
+$statusChartColors = array_values(array_map(fn($s) => $s['color'], $orderStatusLabels));
+$statusChartValues = array_values($statusCounts);
+
 $stmt = $pdo->query("
     SELECT o.*, c.name as customer_name 
     FROM orders o 
@@ -63,6 +101,95 @@ $pendingPurchases = $stmt->fetchAll();
         </div>
     </div>
 </div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card mb-4">
+            <div class="card-header">
+                <i class="bi bi-bar-chart"></i> 月次売上推移（直近6ヶ月）
+            </div>
+            <div class="card-body">
+                <div style="position: relative; height: 320px;">
+                    <canvas id="monthlySalesChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card mb-4">
+            <div class="card-header">
+                <i class="bi bi-pie-chart"></i> 受注ステータス別件数
+            </div>
+            <div class="card-body">
+                <div style="position: relative; height: 320px;">
+                    <canvas id="orderStatusChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+(function () {
+    var labels = <?= json_encode($trendLabels, JSON_UNESCAPED_UNICODE) ?>;
+    var values = <?= json_encode($trendValues) ?>;
+    var yen = function (v) { return '¥' + Number(v).toLocaleString('ja-JP'); };
+
+    new Chart(document.getElementById('monthlySalesChart'), {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: '売上金額',
+                data: values,
+                backgroundColor: getComputedStyle(document.body).getPropertyValue('--theme-color').trim() || '#0d6efd'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: { callbacks: { label: function (ctx) { return yen(ctx.parsed.y); } } }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: { callback: function (v) { return yen(v); } }
+                }
+            }
+        }
+    });
+
+    new Chart(document.getElementById('orderStatusChart'), {
+        type: 'pie',
+        data: {
+            labels: <?= json_encode($statusChartLabels, JSON_UNESCAPED_UNICODE) ?>,
+            datasets: [{
+                data: <?= json_encode($statusChartValues) ?>,
+                backgroundColor: <?= json_encode($statusChartColors) ?>
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'bottom' },
+                tooltip: {
+                    callbacks: {
+                        label: function (ctx) {
+                            var total = ctx.dataset.data.reduce(function (a, b) { return a + b; }, 0);
+                            var pct = total ? Math.round(ctx.parsed / total * 100) : 0;
+                            return ctx.label + ': ' + Number(ctx.parsed).toLocaleString('ja-JP') + '件 (' + pct + '%)';
+                        }
+                    }
+                }
+            }
+        }
+    });
+})();
+</script>
 
 <div class="row">
     <div class="col-md-6">

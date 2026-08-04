@@ -73,39 +73,39 @@ $exported = $_GET['exported'] ?? '';
 $date_from = $_GET['date_from'] ?? '';
 $date_to = $_GET['date_to'] ?? '';
 
-$sql = "SELECT s.*, c.name as customer_name, o.order_no FROM sales s JOIN customers c ON s.customer_id = c.id JOIN orders o ON s.order_id = o.id WHERE 1=1";
+$where = "FROM sales s JOIN customers c ON s.customer_id = c.id JOIN orders o ON s.order_id = o.id WHERE 1=1";
 $params = [];
 
 if ($search) {
-    $sql .= " AND (s.sales_no LIKE ? OR s.invoice_no LIKE ? OR c.name LIKE ? OR o.order_no LIKE ?)";
+    $where .= " AND (s.sales_no LIKE ? OR s.invoice_no LIKE ? OR c.name LIKE ? OR o.order_no LIKE ?)";
     $params[] = "%$search%";
     $params[] = "%$search%";
     $params[] = "%$search%";
     $params[] = "%$search%";
 }
 if ($exported !== '') {
-    $sql .= " AND s.exported = ?";
+    $where .= " AND s.exported = ?";
     $params[] = $exported;
 }
 if ($date_from) {
-    $sql .= " AND s.sales_date >= ?";
+    $where .= " AND s.sales_date >= ?";
     $params[] = $date_from;
 }
 if ($date_to) {
-    $sql .= " AND s.sales_date <= ?";
+    $where .= " AND s.sales_date <= ?";
     $params[] = $date_to;
 }
 
-$sql .= " ORDER BY s.sales_date DESC, s.id DESC";
-
-$stmt = $pdo->prepare($sql);
-$stmt->execute($params);
-$salesList = $stmt->fetchAll();
+$pagination = fetchPaginated($pdo, 's.*, c.name as customer_name, o.order_no', $where, 's.sales_date DESC, s.id DESC', $params);
+$salesList = $pagination['rows'];
 ?>
 
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2><i class="bi bi-graph-up"></i> 売上一覧</h2>
-    <a href="edit.php" class="btn btn-primary"><i class="bi bi-plus"></i> 新規売上</a>
+    <div>
+        <a href="export.php" class="btn btn-outline-success"><i class="bi bi-file-earmark-spreadsheet"></i> CSV出力（会計連携）</a>
+        <a href="edit.php" class="btn btn-primary"><i class="bi bi-plus"></i> 新規売上</a>
+    </div>
 </div>
 
 <div class="card mb-4">
@@ -189,6 +189,8 @@ $salesList = $stmt->fetchAll();
                     <?php endif; ?>
                 </tbody>
             </table>
+
+            <?php renderPagination($pagination); ?>
         </div>
     </div>
 </form>

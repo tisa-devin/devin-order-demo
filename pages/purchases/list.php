@@ -7,25 +7,22 @@ $pdo = getDB();
 $search = $_GET['search'] ?? '';
 $status = $_GET['status'] ?? '';
 
-$sql = "SELECT p.*, s.name as supplier_name, o.order_no FROM purchases p JOIN suppliers s ON p.supplier_id = s.id JOIN orders o ON p.order_id = o.id WHERE 1=1";
+$where = "FROM purchases p JOIN suppliers s ON p.supplier_id = s.id JOIN orders o ON p.order_id = o.id WHERE 1=1";
 $params = [];
 
 if ($search) {
-    $sql .= " AND (p.purchase_no LIKE ? OR s.name LIKE ? OR o.order_no LIKE ?)";
+    $where .= " AND (p.purchase_no LIKE ? OR s.name LIKE ? OR o.order_no LIKE ?)";
     $params[] = "%$search%";
     $params[] = "%$search%";
     $params[] = "%$search%";
 }
 if ($status) {
-    $sql .= " AND p.status = ?";
+    $where .= " AND p.status = ?";
     $params[] = $status;
 }
 
-$sql .= " ORDER BY p.purchase_date DESC, p.id DESC";
-
-$stmt = $pdo->prepare($sql);
-$stmt->execute($params);
-$purchases = $stmt->fetchAll();
+$pagination = fetchPaginated($pdo, 'p.*, s.name as supplier_name, o.order_no', $where, 'p.purchase_date DESC, p.id DESC', $params);
+$purchases = $pagination['rows'];
 
 $statusLabels = [
     'ordered' => ['label' => '発注済', 'class' => 'primary'],
@@ -108,6 +105,8 @@ $statusLabels = [
                 <?php endif; ?>
             </tbody>
         </table>
+
+        <?php renderPagination($pagination); ?>
     </div>
 </div>
 

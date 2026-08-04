@@ -13,6 +13,8 @@ function initializeDatabase(): void {
             postal_code TEXT,
             address TEXT,
             tel TEXT,
+            contact_name TEXT,
+            email TEXT,
             accounting_code TEXT,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -177,6 +179,14 @@ function initializeDatabase(): void {
         INSERT OR IGNORE INTO sequences (name, current_value) VALUES ('invoice', 0);
         INSERT OR IGNORE INTO sequences (name, current_value) VALUES ('acceptance', 0);
     ");
+
+    // 既存DB向けの列追加
+    $existingColumns = array_column($pdo->query("PRAGMA table_info(customers)")->fetchAll(), 'name');
+    foreach (['contact_name', 'email'] as $column) {
+        if (!in_array($column, $existingColumns, true)) {
+            $pdo->exec("ALTER TABLE customers ADD COLUMN {$column} TEXT");
+        }
+    }
 }
 
 function getNextNumber(string $type): string {

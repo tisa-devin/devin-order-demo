@@ -6,6 +6,102 @@ $pdo = getDB();
 $message = '';
 $error = '';
 
+// CSVインポートの列（キー => 受け付けるヘッダー名）
+const CSV_COLUMNS = [
+    'code' => ['code', '顧客コード'],
+    'name' => ['name', '顧客名'],
+    'postal_code' => ['postal_code', '郵便番号'],
+    'address' => ['address', '住所'],
+    'tel' => ['tel', '電話番号'],
+    'contact_name' => ['contact_name', '担当者名', '担当者'],
+    'email' => ['email', 'メールアドレス', 'メール'],
+    'accounting_code' => ['accounting_code', '会計用コード', '勘定科目コード'],
+];
+
+$importRows = null;   // プレビュー対象の取り込み行
+$importErrors = [];   // ['line' => 行番号, 'reason' => 理由]
+
+/**
+ * アップロードされたCSVを解析し、取り込み行とエラー行に振り分ける。
+ * 戻り値は [取り込み行, エラー行, 全体エラーメッセージ]。
+ */
+function parseCustomerCsv(string $path, PDO $pdo): array {
+    $content = (string)file_get_contents($path);
+    $content = preg_replace('/^\xEF\xBB\xBF/', '', $content);
+    if (!mb_check_encoding($content, 'UTF-8')) {
+        $content = mb_convert_encoding($content, 'UTF-8', 'SJIS-win');
+    }
+
+    $tmp = fopen('php://temp', 'r+');
+    fwrite($tmp, $content);
+    rewind($tmp);
+
+    $existing = $pdo->query("SELECT code, id FROM customers")->fetchAll(PDO::FETCH_KEY_PAIR);
+    $columnIndex = [];
+    $rows = [];
+    $errors = [];
+    $seenCodes = [];
+    $lineNo = 0;
+
+    while (($fields = fgetcsv($tmp, 0, ',', '"', '')) !== false) {
+        $lineNo++;
+        if (count($fields) === 1 && trim((string)$fields[0]) === '') {
+            continue;
+        }
+
+        if (!$columnIndex) {
+            foreach ($fields as $i => $header) {
+                $header = trim(str_replace([' ', '　'], '', (string)$header));
+                foreach (CSV_COLUMNS as $key => $aliases) {
+                    if (in_array($header, $aliases, true)) {
+                        $columnIndex[$key] = $i;
+                    }
+                }
+            }
+            if (!isset($columnIndex['code'], $columnIndex['name'])) {
+                fclose($tmp);
+                return [null, [], 'ヘッダー行に code（顧客コード）と name（顧客名）が必要です'];
+            }
+            continue;
+        }
+
+        if (count($fields) < count($columnIndex)) {
+            $errors[] = ['line' => $lineNo, 'reason' => '列数が不足しています（' . count($columnIndex) . '列必要、' . count($fields) . '列）'];
+            continue;
+        }
+
+        $row = [];
+        foreach (array_keys(CSV_COLUMNS) as $key) {
+            $row[$key] = isset($columnIndex[$key]) ? trim((string)($fields[$columnIndex[$key]] ?? '')) : '';
+        }
+
+        if ($row['code'] === '' || $row['name'] === '') {
+            $errors[] = ['line' => $lineNo, 'reason' => '顧客コードまたは顧客名が空です'];
+            continue;
+        }
+        if (mb_strlen($row['code']) > 20) {
+            $errors[] = ['line' => $lineNo, 'reason' => '顧客コードが長すぎます（20文字以内）: ' . $row['code']];
+            continue;
+        }
+        if (isset($seenCodes[$row['code']])) {
+            $errors[] = ['line' => $lineNo, 'reason' => 'ファイル内で顧客コードが重複しています（' . $seenCodes[$row['code']] . '行目と重複）: ' . $row['code']];
+            continue;
+        }
+
+        $seenCodes[$row['code']] = $lineNo;
+        $row['line'] = $lineNo;
+        $row['mode'] = isset($existing[$row['code']]) ? 'update' : 'insert';
+        $rows[] = $row;
+    }
+    fclose($tmp);
+
+    if (!$columnIndex) {
+        return [null, [], 'CSVの内容が空です'];
+    }
+
+    return [$rows, $errors, ''];
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
     
@@ -16,6 +112,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $postal_code = trim($_POST['postal_code'] ?? '');
         $address = trim($_POST['address'] ?? '');
         $tel = trim($_POST['tel'] ?? '');
+        $contact_name = trim($_POST['contact_name'] ?? '');
+        $email = trim($_POST['email'] ?? '');
         $accounting_code = trim($_POST['accounting_code'] ?? '');
         
         if (empty($code) || empty($name)) {
@@ -23,12 +121,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             try {
                 if ($action === 'create') {
-                    $stmt = $pdo->prepare("INSERT INTO customers (code, name, postal_code, address, tel, accounting_code) VALUES (?, ?, ?, ?, ?, ?)");
-                    $stmt->execute([$code, $name, $postal_code, $address, $tel, $accounting_code]);
+                    $stmt = $pdo->prepare("INSERT INTO customers (code, name, postal_code, address, tel, contact_name, email, accounting_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+                    $stmt->execute([$code, $name, $postal_code, $address, $tel, $contact_name, $email, $accounting_code]);
                     $message = '顧客を登録しました';
                 } else {
-                    $stmt = $pdo->prepare("UPDATE customers SET code = ?, name = ?, postal_code = ?, address = ?, tel = ?, accounting_code = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?");
-                    $stmt->execute([$code, $name, $postal_code, $address, $tel, $accounting_code, $id]);
+                    $stmt = $pdo->prepare("UPDATE customers SET code = ?, name = ?, postal_code = ?, address = ?, tel = ?, contact_name = ?, email = ?, accounting_code = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?");
+                    $stmt->execute([$code, $name, $postal_code, $address, $tel, $contact_name, $email, $accounting_code, $id]);
                     $message = '顧客を更新しました';
                 }
             } catch (PDOException $e) {
@@ -37,6 +135,56 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 } else {
                     $error = 'エラーが発生しました: ' . $e->getMessage();
                 }
+            }
+        }
+    } elseif ($action === 'import_preview') {
+        $file = $_FILES['csv'] ?? null;
+        if (!$file || ($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
+            $error = 'CSVファイルを選択してください';
+        } else {
+            [$importRows, $importErrors, $parseError] = parseCustomerCsv($file['tmp_name'], $pdo);
+            if ($parseError) {
+                $error = $parseError;
+                $importRows = null;
+            } elseif (!$importRows && !$importErrors) {
+                $error = '取り込める行がありませんでした';
+                $importRows = null;
+            }
+        }
+    } elseif ($action === 'import_commit') {
+        $decoded = json_decode($_POST['rows'] ?? '', true);
+        if (!is_array($decoded) || !$decoded) {
+            $error = '取り込み対象がありません。もう一度CSVを選択してください';
+        } else {
+            $inserted = 0;
+            $updated = 0;
+            try {
+                $pdo->beginTransaction();
+                $existsStmt = $pdo->prepare("SELECT COUNT(*) FROM customers WHERE code = ?");
+                $insertStmt = $pdo->prepare("INSERT INTO customers (code, name, postal_code, address, tel, contact_name, email, accounting_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+                $updateStmt = $pdo->prepare("UPDATE customers SET name = ?, postal_code = ?, address = ?, tel = ?, contact_name = ?, email = ?, accounting_code = ?, updated_at = CURRENT_TIMESTAMP WHERE code = ?");
+                foreach ($decoded as $row) {
+                    $values = [];
+                    foreach (array_keys(CSV_COLUMNS) as $key) {
+                        $values[$key] = trim((string)($row[$key] ?? ''));
+                    }
+                    if ($values['code'] === '' || $values['name'] === '') {
+                        continue;
+                    }
+                    $existsStmt->execute([$values['code']]);
+                    if ((int)$existsStmt->fetchColumn() > 0) {
+                        $updateStmt->execute([$values['name'], $values['postal_code'], $values['address'], $values['tel'], $values['contact_name'], $values['email'], $values['accounting_code'], $values['code']]);
+                        $updated++;
+                    } else {
+                        $insertStmt->execute([$values['code'], $values['name'], $values['postal_code'], $values['address'], $values['tel'], $values['contact_name'], $values['email'], $values['accounting_code']]);
+                        $inserted++;
+                    }
+                }
+                $pdo->commit();
+                $message = "CSVを取り込みました（追加 {$inserted} 件 / 更新 {$updated} 件）";
+            } catch (PDOException $e) {
+                $pdo->rollBack();
+                $error = '取り込みに失敗したため、すべて元に戻しました: ' . $e->getMessage();
             }
         }
     } elseif ($action === 'delete') {
@@ -73,10 +221,113 @@ $customers = $stmt->fetchAll();
 
 <div class="card mb-4">
     <div class="card-header">
+        <i class="bi bi-upload"></i> CSV一括インポート
+    </div>
+    <div class="card-body">
+        <?php if ($importRows !== null): ?>
+            <?php
+            $insertCount = count(array_filter($importRows, fn($r) => $r['mode'] === 'insert'));
+            $updateCount = count($importRows) - $insertCount;
+            ?>
+            <p class="mb-2">
+                取り込み内容を確認してください：
+                <span class="badge bg-success">追加 <?= $insertCount ?> 件</span>
+                <span class="badge bg-primary">更新 <?= $updateCount ?> 件</span>
+                <span class="badge bg-danger">エラー <?= count($importErrors) ?> 件</span>
+            </p>
+            <?php if ($importRows): ?>
+            <div class="table-responsive mb-3" style="max-height: 320px; overflow-y: auto;">
+                <table class="table table-sm table-striped mb-0">
+                    <thead>
+                        <tr>
+                            <th>行</th>
+                            <th>区分</th>
+                            <th>コード</th>
+                            <th>顧客名</th>
+                            <th>郵便番号</th>
+                            <th>住所</th>
+                            <th>電話番号</th>
+                            <th>担当者名</th>
+                            <th>メールアドレス</th>
+                            <th>会計用コード</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($importRows as $row): ?>
+                        <tr>
+                            <td><?= (int)$row['line'] ?></td>
+                            <td><span class="badge bg-<?= $row['mode'] === 'insert' ? 'success' : 'primary' ?>"><?= $row['mode'] === 'insert' ? '追加' : '更新' ?></span></td>
+                            <td><?= h($row['code']) ?></td>
+                            <td><?= h($row['name']) ?></td>
+                            <td><?= h($row['postal_code']) ?></td>
+                            <td><?= h($row['address']) ?></td>
+                            <td><?= h($row['tel']) ?></td>
+                            <td><?= h($row['contact_name']) ?></td>
+                            <td><?= h($row['email']) ?></td>
+                            <td><?= h($row['accounting_code']) ?></td>
+                        </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+            <?php endif; ?>
+
+            <?php if ($importErrors): ?>
+            <div class="alert alert-warning">
+                <strong>エラー行（スキップされます）</strong>
+                <ul class="mb-0">
+                    <?php foreach ($importErrors as $err): ?>
+                    <li><?= (int)$err['line'] ?> 行目: <?= h($err['reason']) ?></li>
+                    <?php endforeach; ?>
+                </ul>
+            </div>
+            <?php endif; ?>
+
+            <form method="post" class="d-inline">
+                <input type="hidden" name="action" value="import_commit">
+                <input type="hidden" name="rows" value="<?= h(json_encode($importRows, JSON_UNESCAPED_UNICODE)) ?>">
+                <button type="submit" class="btn btn-primary" <?= $importRows ? '' : 'disabled' ?>>この内容で取り込む</button>
+            </form>
+            <a href="customers.php" class="btn btn-secondary">キャンセル</a>
+        <?php else: ?>
+            <form method="post" enctype="multipart/form-data" class="row g-2 align-items-end">
+                <input type="hidden" name="action" value="import_preview">
+                <div class="col-md-6">
+                    <label class="form-label">CSVファイル</label>
+                    <input type="file" name="csv" class="form-control" accept=".csv,text/csv" required>
+                </div>
+                <div class="col-md-3">
+                    <button type="submit" class="btn btn-outline-primary">内容を確認</button>
+                </div>
+            </form>
+            <p class="text-muted small mb-0 mt-2">
+                1行目はヘッダー行（<code>code, name, postal_code, address, tel, contact_name, email, accounting_code</code>、または 顧客コード, 顧客名, 郵便番号, 住所, 電話番号, 担当者名, メールアドレス, 会計用コード）。
+                <code>code</code> をキーに、既存なら更新・なければ新規登録します。文字コードは UTF-8 / Shift_JIS のどちらでも取り込めます。
+            </p>
+        <?php endif; ?>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">
         <?= $editCustomer ? '顧客編集' : '顧客登録' ?>
     </div>
     <div class="card-body">
-        <form method="post">
+        <div class="border rounded p-3 mb-3 bg-light">
+            <label class="form-label mb-1"><i class="bi bi-camera"></i> 名刺から読み取り</label>
+            <div class="row g-2 align-items-center">
+                <div class="col-md-6">
+                    <input type="file" id="cardImage" class="form-control form-control-sm" accept="image/*" capture="environment">
+                </div>
+                <div class="col-md-6">
+                    <button type="button" id="cardExtractBtn" class="btn btn-sm btn-outline-primary">AIで読み取る</button>
+                    <span id="cardExtractStatus" class="ms-2 small text-muted"></span>
+                </div>
+            </div>
+            <div class="form-text">名刺を撮影または選択すると、会社名・郵便番号・住所・電話番号・担当者名・メールアドレスを下のフォームに自動入力します。顧客コードは自動入力されません。内容を確認・修正のうえ登録ボタンを押してください。</div>
+        </div>
+
+        <form method="post" id="customerForm">
             <input type="hidden" name="action" value="<?= $editCustomer ? 'update' : 'create' ?>">
             <?php if ($editCustomer): ?>
             <input type="hidden" name="id" value="<?= $editCustomer['id'] ?>">
@@ -109,6 +360,16 @@ $customers = $stmt->fetchAll();
                     <input type="text" name="tel" class="form-control" value="<?= h($editCustomer['tel'] ?? '') ?>">
                 </div>
             </div>
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">担当者名</label>
+                    <input type="text" name="contact_name" class="form-control" value="<?= h($editCustomer['contact_name'] ?? '') ?>">
+                </div>
+                <div class="col-md-5 mb-3">
+                    <label class="form-label">メールアドレス</label>
+                    <input type="email" name="email" class="form-control" value="<?= h($editCustomer['email'] ?? '') ?>">
+                </div>
+            </div>
             <button type="submit" class="btn btn-primary"><?= $editCustomer ? '更新' : '登録' ?></button>
             <?php if ($editCustomer): ?>
             <a href="customers.php" class="btn btn-secondary">キャンセル</a>
@@ -128,6 +389,8 @@ $customers = $stmt->fetchAll();
                     <th>郵便番号</th>
                     <th>住所</th>
                     <th>電話番号</th>
+                    <th>担当者名</th>
+                    <th>メールアドレス</th>
                     <th>会計用コード</th>
                     <th>操作</th>
                 </tr>
@@ -140,6 +403,8 @@ $customers = $stmt->fetchAll();
                     <td><?= h($customer['postal_code']) ?></td>
                     <td><?= h($customer['address']) ?></td>
                     <td><?= h($customer['tel']) ?></td>
+                    <td><?= h($customer['contact_name']) ?></td>
+                    <td><?= h($customer['email']) ?></td>
                     <td><?= h($customer['accounting_code']) ?></td>
                     <td>
                         <a href="?edit=<?= $customer['id'] ?>" class="btn btn-sm btn-outline-primary btn-action">編集</a>
@@ -152,11 +417,70 @@ $customers = $stmt->fetchAll();
                 </tr>
                 <?php endforeach; ?>
                 <?php if (empty($customers)): ?>
-                <tr><td colspan="7" class="text-center text-muted">データがありません</td></tr>
+                <tr><td colspan="9" class="text-center text-muted">データがありません</td></tr>
                 <?php endif; ?>
             </tbody>
         </table>
     </div>
 </div>
+
+<script>
+(function () {
+    var btn = document.getElementById('cardExtractBtn');
+    var input = document.getElementById('cardImage');
+    var status = document.getElementById('cardExtractStatus');
+
+    btn.addEventListener('click', async function () {
+        if (!input.files || !input.files[0]) {
+            status.textContent = '名刺画像を選択してください';
+            status.className = 'ms-2 small text-danger';
+            return;
+        }
+
+        var formData = new FormData();
+        formData.append('image', input.files[0]);
+
+        btn.disabled = true;
+        status.textContent = '読み取り中...';
+        status.className = 'ms-2 small text-muted';
+
+        try {
+            // Basic認証付きURL配下では認証情報入りURLの fetch が拒否されるため除去する
+            var endpoint = new URL('extract_business_card.php', location.href);
+            endpoint.username = '';
+            endpoint.password = '';
+
+            var res = await fetch(endpoint.toString(), { method: 'POST', body: formData });
+            var data = await res.json();
+            if (!res.ok || data.error) {
+                throw new Error(data.error || ('HTTP ' + res.status));
+            }
+
+            var filled = [];
+            ['name', 'postal_code', 'address', 'tel', 'contact_name', 'email'].forEach(function (key) {
+                var value = (data.customer && data.customer[key]) ? data.customer[key] : '';
+                var field = document.querySelector('#customerForm input[name="' + key + '"]');
+                if (field && value) {
+                    field.value = value;
+                    filled.push(key);
+                }
+            });
+
+            if (filled.length) {
+                status.textContent = '読み取りました（' + filled.length + '項目）。内容を確認して登録してください';
+                status.className = 'ms-2 small text-success';
+            } else {
+                status.textContent = '読み取れる情報がありませんでした';
+                status.className = 'ms-2 small text-danger';
+            }
+        } catch (e) {
+            status.textContent = 'エラー: ' + e.message;
+            status.className = 'ms-2 small text-danger';
+        } finally {
+            btn.disabled = false;
+        }
+    });
+})();
+</script>
 
 <?php require_once __DIR__ . '/../../includes/footer.php'; ?>
