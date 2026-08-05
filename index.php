@@ -32,6 +32,17 @@ $stmt = $pdo->query("
     LIMIT 10
 ");
 $pendingPurchases = $stmt->fetchAll();
+
+$monthlyTrend = [];
+for ($i = 5; $i >= 0; $i--) {
+    $month = date('Y-m', strtotime("first day of -$i month"));
+    $stmt = $pdo->prepare("SELECT COALESCE(SUM(total_amount), 0) as total FROM sales WHERE strftime('%Y-%m', sales_date) = ?");
+    $stmt->execute([$month]);
+    $monthlyTrend[] = [
+        'label' => date('Y/m', strtotime($month . '-01')),
+        'total' => (int)$stmt->fetch()['total'],
+    ];
+}
 ?>
 
 <h2 class="mb-4"><i class="bi bi-speedometer2"></i> ダッシュボード</h2>
@@ -61,6 +72,15 @@ $pendingPurchases = $stmt->fetchAll();
                 <h2 class="mb-0"><?= count($pendingPurchases) ?>件</h2>
             </div>
         </div>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">
+        <i class="bi bi-bar-chart"></i> 月次売上推移（直近6ヶ月）
+    </div>
+    <div class="card-body">
+        <canvas id="monthlySalesChart" height="80"></canvas>
     </div>
 </div>
 
@@ -132,5 +152,45 @@ $pendingPurchases = $stmt->fetchAll();
         </div>
     </div>
 </div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+    (function () {
+        var trend = <?= json_encode($monthlyTrend, JSON_UNESCAPED_UNICODE) ?>;
+        var formatYen = function (value) {
+            return '\u00a5' + Number(value).toLocaleString('ja-JP');
+        };
+        new Chart(document.getElementById('monthlySalesChart'), {
+            type: 'bar',
+            data: {
+                labels: trend.map(function (m) { return m.label; }),
+                datasets: [{
+                    label: '売上金額',
+                    data: trend.map(function (m) { return m.total; }),
+                    backgroundColor: 'rgba(13, 110, 253, 0.6)',
+                    borderColor: 'rgba(13, 110, 253, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function (context) { return formatYen(context.parsed.y); }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: { callback: function (value) { return formatYen(value); } }
+                    }
+                }
+            }
+        });
+    })();
+</script>
 
 <?php require_once __DIR__ . '/includes/footer.php'; ?>
