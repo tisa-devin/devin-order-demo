@@ -8,6 +8,8 @@ $search = trim($_GET['search'] ?? '');
 $customerName = trim($_GET['customer_name'] ?? '');
 $dateFrom = trim($_GET['date_from'] ?? '');
 $dateTo = trim($_GET['date_to'] ?? '');
+$deliveryFrom = trim($_GET['delivery_from'] ?? '');
+$deliveryTo = trim($_GET['delivery_to'] ?? '');
 $status = $_GET['status'] ?? '';
 
 $sql = "SELECT o.*, c.name as customer_name FROM orders o JOIN customers c ON o.customer_id = c.id WHERE 1=1";
@@ -29,6 +31,14 @@ if ($dateFrom !== '') {
 if ($dateTo !== '') {
     $sql .= " AND o.order_date <= ?";
     $params[] = $dateTo;
+}
+if ($deliveryFrom !== '') {
+    $sql .= " AND o.delivery_date >= ?";
+    $params[] = $deliveryFrom;
+}
+if ($deliveryTo !== '') {
+    $sql .= " AND o.delivery_date <= ?";
+    $params[] = $deliveryTo;
 }
 if ($status) {
     $sql .= " AND o.status = ?";
@@ -81,6 +91,14 @@ $statusLabels = [
             <div class="col-md-4">
                 <label class="form-label">受注日（至）</label>
                 <input type="date" name="date_to" class="form-control" value="<?= h($dateTo) ?>">
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">納期（自）</label>
+                <input type="date" name="delivery_from" class="form-control" value="<?= h($deliveryFrom) ?>">
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">納期（至）</label>
+                <input type="date" name="delivery_to" class="form-control" value="<?= h($deliveryTo) ?>">
             </div>
             <div class="col-md-4 d-flex align-items-end">
                 <button type="submit" class="btn btn-outline-primary me-2">検索</button>
