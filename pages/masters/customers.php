@@ -43,6 +43,11 @@ function parseCustomerCsv(string $path, PDO $pdo): array {
             continue; // 空行
         }
 
+        if (count($line) < 2) {
+            $errors[] = ['line' => $lineNo, 'reason' => '列が不足しています（顧客コードと顧客名の2列以上が必要です）'];
+            continue;
+        }
+
         $values = [];
         foreach (IMPORT_COLUMNS as $index => $column) {
             $values[$column] = trim((string)($line[$index] ?? ''));
