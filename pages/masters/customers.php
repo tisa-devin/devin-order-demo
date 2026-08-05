@@ -16,6 +16,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $postal_code = trim($_POST['postal_code'] ?? '');
         $address = trim($_POST['address'] ?? '');
         $tel = trim($_POST['tel'] ?? '');
+        $contact_name = trim($_POST['contact_name'] ?? '');
+        $email = trim($_POST['email'] ?? '');
+        $department = trim($_POST['department'] ?? '');
+        $job_title = trim($_POST['job_title'] ?? '');
         $accounting_code = trim($_POST['accounting_code'] ?? '');
         
         if (empty($code) || empty($name)) {
@@ -23,12 +27,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             try {
                 if ($action === 'create') {
-                    $stmt = $pdo->prepare("INSERT INTO customers (code, name, postal_code, address, tel, accounting_code) VALUES (?, ?, ?, ?, ?, ?)");
-                    $stmt->execute([$code, $name, $postal_code, $address, $tel, $accounting_code]);
+                    $stmt = $pdo->prepare("INSERT INTO customers (code, name, postal_code, address, tel, contact_name, email, department, job_title, accounting_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                    $stmt->execute([$code, $name, $postal_code, $address, $tel, $contact_name, $email, $department, $job_title, $accounting_code]);
                     $message = '顧客を登録しました';
                 } else {
-                    $stmt = $pdo->prepare("UPDATE customers SET code = ?, name = ?, postal_code = ?, address = ?, tel = ?, accounting_code = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?");
-                    $stmt->execute([$code, $name, $postal_code, $address, $tel, $accounting_code, $id]);
+                    $stmt = $pdo->prepare("UPDATE customers SET code = ?, name = ?, postal_code = ?, address = ?, tel = ?, contact_name = ?, email = ?, department = ?, job_title = ?, accounting_code = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?");
+                    $stmt->execute([$code, $name, $postal_code, $address, $tel, $contact_name, $email, $department, $job_title, $accounting_code, $id]);
                     $message = '顧客を更新しました';
                 }
             } catch (PDOException $e) {
@@ -127,6 +131,24 @@ $customers = $stmt->fetchAll();
                     <input type="text" name="tel" class="form-control" value="<?= h($editCustomer['tel'] ?? '') ?>">
                 </div>
             </div>
+            <div class="row">
+                <div class="col-md-3 mb-3">
+                    <label class="form-label">担当者名</label>
+                    <input type="text" name="contact_name" class="form-control" value="<?= h($editCustomer['contact_name'] ?? '') ?>">
+                </div>
+                <div class="col-md-3 mb-3">
+                    <label class="form-label">部署名</label>
+                    <input type="text" name="department" class="form-control" value="<?= h($editCustomer['department'] ?? '') ?>">
+                </div>
+                <div class="col-md-2 mb-3">
+                    <label class="form-label">役職</label>
+                    <input type="text" name="job_title" class="form-control" value="<?= h($editCustomer['job_title'] ?? '') ?>">
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">メールアドレス</label>
+                    <input type="email" name="email" class="form-control" value="<?= h($editCustomer['email'] ?? '') ?>">
+                </div>
+            </div>
             <button type="submit" class="btn btn-primary"><?= $editCustomer ? '更新' : '登録' ?></button>
             <?php if ($editCustomer): ?>
             <a href="customers.php" class="btn btn-secondary">キャンセル</a>
@@ -146,6 +168,10 @@ $customers = $stmt->fetchAll();
                     <th>郵便番号</th>
                     <th>住所</th>
                     <th>電話番号</th>
+                    <th>担当者名</th>
+                    <th>部署名</th>
+                    <th>役職</th>
+                    <th>メールアドレス</th>
                     <th>会計用コード</th>
                     <th>操作</th>
                 </tr>
@@ -158,6 +184,10 @@ $customers = $stmt->fetchAll();
                     <td><?= h($customer['postal_code']) ?></td>
                     <td><?= h($customer['address']) ?></td>
                     <td><?= h($customer['tel']) ?></td>
+                    <td><?= h($customer['contact_name'] ?? '') ?></td>
+                    <td><?= h($customer['department'] ?? '') ?></td>
+                    <td><?= h($customer['job_title'] ?? '') ?></td>
+                    <td><?= h($customer['email'] ?? '') ?></td>
                     <td><?= h($customer['accounting_code']) ?></td>
                     <td>
                         <a href="?edit=<?= $customer['id'] ?>" class="btn btn-sm btn-outline-primary btn-action">編集</a>
@@ -170,7 +200,7 @@ $customers = $stmt->fetchAll();
                 </tr>
                 <?php endforeach; ?>
                 <?php if (empty($customers)): ?>
-                <tr><td colspan="7" class="text-center text-muted">データがありません</td></tr>
+                <tr><td colspan="11" class="text-center text-muted">データがありません</td></tr>
                 <?php endif; ?>
             </tbody>
         </table>
@@ -220,7 +250,11 @@ $customers = $stmt->fetchAll();
                 name: data.company_name,
                 postal_code: data.postal_code,
                 address: data.address,
-                tel: data.tel
+                tel: data.tel,
+                contact_name: data.contact_name,
+                email: data.email,
+                department: data.department,
+                job_title: data.job_title
             };
             Object.keys(map).forEach(function (key) {
                 const el = form.querySelector('[name="' + key + '"]');

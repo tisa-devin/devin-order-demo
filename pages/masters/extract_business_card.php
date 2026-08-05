@@ -45,7 +45,8 @@ if ($binary === false) {
 }
 $dataUrl = 'data:' . $mime . ';base64,' . base64_encode($binary);
 
-$prompt = '名刺画像から 会社名(company_name)・郵便番号(postal_code)・住所(address)・電話番号(tel) を抽出し、'
+$prompt = '名刺画像から 会社名(company_name)・郵便番号(postal_code)・住所(address)・電話番号(tel)・'
+    . '担当者名(contact_name)・メールアドレス(email)・部署名(department)・役職(job_title) を抽出し、'
     . 'これらのキーのみを持つJSONだけを返してください。読み取れない項目は空文字にしてください。'
     . '顧客コードなど他の項目は含めないでください。';
 
@@ -100,4 +101,8 @@ respond(200, [
     'postal_code' => (string)($extracted['postal_code'] ?? ''),
     'address' => (string)($extracted['address'] ?? ''),
     'tel' => (string)($extracted['tel'] ?? ''),
+    'contact_name' => (string)($extracted['contact_name'] ?? ''),
+    'email' => (string)($extracted['email'] ?? ''),
+    'department' => (string)($extracted['department'] ?? ''),
+    'job_title' => (string)($extracted['job_title'] ?? ''),
 ]);
