@@ -27,34 +27,41 @@ $receivable = $pdo->query("SELECT code, name, tax_class_code FROM accounts WHERE
 $salesAccount = $pdo->query("SELECT code, name, tax_class_code FROM accounts WHERE name LIKE '%売上高%' LIMIT 1")->fetch()
     ?: ['code' => '4110', 'name' => '売上高', 'tax_class_code' => '0060'];
 
-$csvHeader = [
-    '売上日', '売上番号', '請求書番号', '受注番号', '顧客コード', '顧客名', '顧客勘定科目コード',
-    '借方科目コード', '借方科目名', '貸方科目コード', '貸方科目名', '税区分コード',
-    '税抜金額', '消費税額', '合計金額', '摘要'
+// 出力可能な列定義（キー => 見出しと値の組み立て方）
+$columnDefs = [
+    'sales_date' => ['label' => '売上日', 'value' => fn($s) => date('Y/m/d', strtotime($s['sales_date']))],
+    'sales_no' => ['label' => '売上番号', 'value' => fn($s) => $s['sales_no']],
+    'invoice_no' => ['label' => '請求書番号', 'value' => fn($s) => $s['invoice_no'] ?? ''],
+    'order_no' => ['label' => '受注番号', 'value' => fn($s) => $s['order_no'] ?? ''],
+    'customer_code' => ['label' => '顧客コード', 'value' => fn($s) => $s['customer_code']],
+    'customer_name' => ['label' => '顧客名', 'value' => fn($s) => $s['customer_name']],
+    'customer_accounting_code' => ['label' => '顧客勘定科目コード', 'value' => fn($s) => $s['customer_accounting_code'] ?? ''],
+    'debit_code' => ['label' => '借方科目コード', 'value' => fn($s) => $receivable['code']],
+    'debit_name' => ['label' => '借方科目名', 'value' => fn($s) => $receivable['name']],
+    'credit_code' => ['label' => '貸方科目コード', 'value' => fn($s) => $salesAccount['code']],
+    'credit_name' => ['label' => '貸方科目名', 'value' => fn($s) => $salesAccount['name']],
+    'tax_class_code' => ['label' => '税区分コード', 'value' => fn($s) => $salesAccount['tax_class_code'] ?? ''],
+    'amount_excluding_tax' => ['label' => '税抜金額', 'value' => fn($s) => $s['total_amount'] - $s['tax_amount']],
+    'tax_amount' => ['label' => '消費税額', 'value' => fn($s) => $s['tax_amount']],
+    'total_amount' => ['label' => '合計金額', 'value' => fn($s) => $s['total_amount']],
+    'note' => ['label' => '摘要', 'value' => fn($s) => "売上計上 {$s['sales_no']} {$s['customer_name']}"],
 ];
 
+// columns_set がない初回アクセスは全列を対象とする
+$selectedColumns = isset($_GET['columns_set'])
+    ? array_values(array_intersect(array_keys($columnDefs), (array)($_GET['columns'] ?? [])))
+    : array_keys($columnDefs);
+if (!$selectedColumns) {
+    $selectedColumns = array_keys($columnDefs);
+}
+
+$csvHeader = array_map(fn($key) => $columnDefs[$key]['label'], $selectedColumns);
+
 /**
- * 売上1件を会計連携用のCSV1行に変換する
+ * 売上1件を選択された列のみのCSV1行に変換する
  */
-function buildExportRow(array $sale, array $receivable, array $salesAccount): array {
-    return [
-        date('Y/m/d', strtotime($sale['sales_date'])),
-        $sale['sales_no'],
-        $sale['invoice_no'] ?? '',
-        $sale['order_no'] ?? '',
-        $sale['customer_code'],
-        $sale['customer_name'],
-        $sale['customer_accounting_code'] ?? '',
-        $receivable['code'],
-        $receivable['name'],
-        $salesAccount['code'],
-        $salesAccount['name'],
-        $salesAccount['tax_class_code'] ?? '',
-        $sale['total_amount'] - $sale['tax_amount'],
-        $sale['tax_amount'],
-        $sale['total_amount'],
-        "売上計上 {$sale['sales_no']} {$sale['customer_name']}",
-    ];
+function buildExportRow(array $sale, array $columnDefs, array $selectedColumns): array {
+    return array_map(fn($key) => $columnDefs[$key]['value']($sale), $selectedColumns);
 }
 
 if (isset($_GET['download'])) {
@@ -70,7 +77,7 @@ if (isset($_GET['download'])) {
     fwrite($out, "\xEF\xBB\xBF");
     fputcsv($out, $csvHeader, ',', '"', '');
     foreach ($sales as $sale) {
-        fputcsv($out, buildExportRow($sale, $receivable, $salesAccount), ',', '"', '');
+        fputcsv($out, buildExportRow($sale, $columnDefs, $selectedColumns), ',', '"', '');
     }
     fclose($out);
 
@@ -101,7 +108,7 @@ require_once __DIR__ . '/../../includes/header.php';
 
 <div class="card mb-4">
     <div class="card-body">
-        <form method="get" class="row g-3 align-items-end">
+        <form method="get" id="exportForm" class="row g-3 align-items-end">
             <div class="col-md-3">
                 <label class="form-label">売上日（自）</label>
                 <input type="date" name="date_from" class="form-control" value="<?= h($date_from) ?>" required>
@@ -118,6 +125,18 @@ require_once __DIR__ . '/../../includes/header.php';
                 <div class="form-check">
                     <input type="checkbox" class="form-check-input" id="mark_exported" name="mark_exported" value="1" <?= $mark_exported ? 'checked' : '' ?>>
                     <label class="form-check-label" for="mark_exported">出力後に出力済にする</label>
+                </div>
+            </div>
+            <div class="col-12">
+                <input type="hidden" name="columns_set" value="1">
+                <label class="form-label">出力する列</label>
+                <div class="d-flex flex-wrap gap-3">
+                    <?php foreach ($columnDefs as $key => $column): ?>
+                    <div class="form-check">
+                        <input type="checkbox" class="form-check-input column-check" id="column_<?= h($key) ?>" name="columns[]" value="<?= h($key) ?>" <?= in_array($key, $selectedColumns, true) ? 'checked' : '' ?>>
+                        <label class="form-check-label" for="column_<?= h($key) ?>"><?= h($column['label']) ?></label>
+                    </div>
+                    <?php endforeach; ?>
                 </div>
             </div>
             <div class="col-md-3">
@@ -146,7 +165,7 @@ require_once __DIR__ . '/../../includes/header.php';
                 <tbody>
                     <?php foreach ($previewSales as $sale): ?>
                     <tr>
-                        <?php foreach (buildExportRow($sale, $receivable, $salesAccount) as $value): ?>
+                        <?php foreach (buildExportRow($sale, $columnDefs, $selectedColumns) as $value): ?>
                         <td><?= h($value) ?></td>
                         <?php endforeach; ?>
                     </tr>
@@ -160,5 +179,26 @@ require_once __DIR__ . '/../../includes/header.php';
         <p class="text-muted small mb-0">文字コードはUTF-8（BOM付き）です。Excelでそのまま開けます。</p>
     </div>
 </div>
+
+<script>
+    // 前回選んだ列構成を復元し、変更の都度保存する
+    const COLUMNS_KEY = 'salesExportColumns';
+    const columnChecks = document.querySelectorAll('.column-check');
+    const saved = localStorage.getItem(COLUMNS_KEY);
+
+    <?php if (!isset($_GET['columns_set'])): ?>
+    // 初回表示時は保存された列構成を適用し、プレビューを揃えるために再送信する
+    if (saved) {
+        const selected = JSON.parse(saved);
+        columnChecks.forEach(check => { check.checked = selected.includes(check.value); });
+        document.getElementById('exportForm').submit();
+    }
+    <?php endif; ?>
+
+    columnChecks.forEach(check => check.addEventListener('change', () => {
+        const selected = Array.from(columnChecks).filter(c => c.checked).map(c => c.value);
+        localStorage.setItem(COLUMNS_KEY, JSON.stringify(selected));
+    }));
+</script>
 
 <?php require_once __DIR__ . '/../../includes/footer.php'; ?>
