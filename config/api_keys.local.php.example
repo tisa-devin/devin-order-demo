@@ -1,0 +1,12 @@
+<?php
+/**
+ * このファイルを同じディレクトリに `api_keys.local.php` としてコピーし、実キーを設定してください。
+ * `api_keys.local.php` は .gitignore 済みのためコミットされません。
+ *
+ *   cp config/api_keys.local.php.example config/api_keys.local.php
+ *
+ * 環境変数 OPENAI_API_KEY が設定されている場合はそちらが優先されます。
+ */
+return [
+    'OPENAI_API_KEY' => 'sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
+];
