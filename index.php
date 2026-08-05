@@ -32,6 +32,29 @@ $stmt = $pdo->query("
     LIMIT 10
 ");
 $pendingPurchases = $stmt->fetchAll();
+
+$monthlySalesData = [];
+for ($i = 5; $i >= 0; $i--) {
+    $ym = date('Y-m', strtotime("first day of -$i month"));
+    $monthlySalesData[$ym] = 0;
+}
+$stmt = $pdo->query("
+    SELECT strftime('%Y-%m', sales_date) as ym, COALESCE(SUM(total_amount), 0) as total
+    FROM sales
+    WHERE sales_date >= date('now', 'start of month', '-5 months')
+    GROUP BY ym
+");
+foreach ($stmt->fetchAll() as $row) {
+    if (array_key_exists($row['ym'], $monthlySalesData)) {
+        $monthlySalesData[$row['ym']] = (int)$row['total'];
+    }
+}
+$chartLabels = [];
+$chartValues = [];
+foreach ($monthlySalesData as $ym => $total) {
+    $chartLabels[] = date('Y/m', strtotime($ym . '-01'));
+    $chartValues[] = $total;
+}
 ?>
 
 <h2 class="mb-4"><i class="bi bi-speedometer2"></i> ダッシュボード</h2>
@@ -61,6 +84,15 @@ $pendingPurchases = $stmt->fetchAll();
                 <h2 class="mb-0"><?= count($pendingPurchases) ?>件</h2>
             </div>
         </div>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">
+        <i class="bi bi-bar-chart"></i> 月次売上推移（直近6ヶ月）
+    </div>
+    <div class="card-body">
+        <canvas id="monthlySalesChart" height="100"></canvas>
     </div>
 </div>
 
@@ -132,5 +164,50 @@ $pendingPurchases = $stmt->fetchAll();
         </div>
     </div>
 </div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+    (function () {
+        var ctx = document.getElementById('monthlySalesChart');
+        if (!ctx) return;
+        var yen = new Intl.NumberFormat('ja-JP');
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: <?= json_encode($chartLabels, JSON_UNESCAPED_UNICODE) ?>,
+                datasets: [{
+                    label: '売上金額',
+                    data: <?= json_encode($chartValues) ?>,
+                    backgroundColor: 'rgba(13, 110, 253, 0.6)',
+                    borderColor: 'rgba(13, 110, 253, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function (context) {
+                                return '\u00A5' + yen.format(context.parsed.y);
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function (value) {
+                                return '\u00A5' + yen.format(value);
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    })();
+</script>
 
 <?php require_once __DIR__ . '/includes/footer.php'; ?>
