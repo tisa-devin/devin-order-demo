@@ -385,7 +385,10 @@ document.getElementById('extractBtn').addEventListener('click', async function (
     status.textContent = '抽出中です...（数十秒かかる場合があります）';
 
     try {
-        const res = await fetch('extract_items.php', { method: 'POST', body: formData });
+        const endpoint = new URL('extract_items.php', location.href);
+        endpoint.username = '';
+        endpoint.password = '';
+        const res = await fetch(endpoint, { method: 'POST', body: formData });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || '抽出に失敗しました');
         if (!data.items.length) throw new Error('明細を抽出できませんでした');
