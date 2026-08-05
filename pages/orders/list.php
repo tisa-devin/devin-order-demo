@@ -2,6 +2,7 @@
 $pageTitle = '受注一覧';
 require_once __DIR__ . '/../../includes/header.php';
 require_once __DIR__ . '/../../includes/list_filters.php';
+require_once __DIR__ . '/../../includes/pagination.php';
 
 $pdo = getDB();
 
@@ -14,12 +15,23 @@ $statusLabels = [
 
 $filters = getListFilters();
 $params = [];
-$sql = "SELECT o.*, c.name as customer_name FROM orders o JOIN customers c ON o.customer_id = c.id WHERE 1=1";
-$sql .= buildListFilterSql($filters, ['o.order_no', 'o.subject', 'c.name'], 'c.name', 'o.order_date', 'o.status', $params);
-$sql .= " ORDER BY o.order_date DESC, o.id DESC";
+$fromSql = " FROM orders o JOIN customers c ON o.customer_id = c.id WHERE 1=1";
+$fromSql .= buildListFilterSql($filters, ['o.order_no', 'o.subject', 'c.name'], 'c.name', 'o.order_date', 'o.status', $params);
 
-$stmt = $pdo->prepare($sql);
-$stmt->execute($params);
+$countStmt = $pdo->prepare("SELECT COUNT(*)" . $fromSql);
+$countStmt->execute($params);
+$totalCount = (int)$countStmt->fetchColumn();
+
+$currentPage = getCurrentPage();
+$offset = ($currentPage - 1) * PER_PAGE;
+
+$stmt = $pdo->prepare("SELECT o.*, c.name as customer_name" . $fromSql . " ORDER BY o.order_date DESC, o.id DESC LIMIT ? OFFSET ?");
+foreach ($params as $i => $param) {
+    $stmt->bindValue($i + 1, $param);
+}
+$stmt->bindValue(count($params) + 1, PER_PAGE, PDO::PARAM_INT);
+$stmt->bindValue(count($params) + 2, $offset, PDO::PARAM_INT);
+$stmt->execute();
 $orders = $stmt->fetchAll();
 ?>
 
@@ -72,6 +84,10 @@ $orders = $stmt->fetchAll();
                 <?php endif; ?>
             </tbody>
         </table>
+        <?php if ($totalCount > 0): ?>
+        <div class="text-muted small">全<?= formatNumber($totalCount) ?>件中 <?= formatNumber($offset + 1) ?>～<?= formatNumber(min($offset + PER_PAGE, $totalCount)) ?>件を表示</div>
+        <?php endif; ?>
+        <?php renderPagination($currentPage, $totalCount); ?>
     </div>
 </div>
 
