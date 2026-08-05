@@ -62,9 +62,22 @@ function isOpenAiConfigured(): bool {
 }
 
 /**
+ * 抽出値を整数に正規化する。読み取れない場合は空文字を返す。
+ */
+function normalizeExtractedInt(mixed $value): int|string {
+    if ($value === null) {
+        return '';
+    }
+    $digits = preg_replace('/[^0-9]/', '', (string)$value);
+    return $digits === '' ? '' : (int)$digits;
+}
+
+/**
  * 注文書画像から明細（品名・数量・単位・単価）を抽出する
  *
- * @return array<int, array{item_name: string, quantity: int, unit: string, unit_price: int}>
+ * 読み取れなかった項目は空文字のまま返す（画面側で空欄表示）
+ *
+ * @return array<int, array{item_name: string, quantity: int|string, unit: string, unit_price: int|string}>
  */
 function extractOrderItemsFromImage(string $imagePath, string $mimeType): array {
     $apiKey = getOpenAiApiKey();
@@ -85,9 +98,8 @@ function extractOrderItemsFromImage(string $imagePath, string $mimeType): array 
 
 ルール:
 - quantity と unit_price は数値のみ（カンマ・通貨記号・小数点は除去し整数にする）
-- unit が読み取れない場合は "式" とする
-- quantity が読み取れない場合は 1 とする
-- unit_price が読み取れない場合は 0 とする
+- 読み取れない項目は推測せず null とする（quantity / unit / unit_price）
+- 明細表の行番号（No）が振られている行は、数量・単位・単価が空欄でも必ずすべて出力する。行を省略してはいけない
 - 単価が不明で金額と数量のみ判る場合は unit_price = 金額 ÷ 数量 とする
 - 小計・消費税・合計などの集計行は含めない
 - 明細が読み取れない場合は {"items":[]} を返す
@@ -147,14 +159,11 @@ PROMPT;
         if ($name === '') {
             continue;
         }
-        $quantity = (int)preg_replace('/[^0-9\-]/', '', (string)($item['quantity'] ?? 1));
-        $unitPrice = (int)preg_replace('/[^0-9\-]/', '', (string)($item['unit_price'] ?? 0));
-        $unit = trim((string)($item['unit'] ?? ''));
         $items[] = [
             'item_name' => $name,
-            'quantity' => $quantity > 0 ? $quantity : 1,
-            'unit' => $unit !== '' ? $unit : '式',
-            'unit_price' => max($unitPrice, 0),
+            'quantity' => normalizeExtractedInt($item['quantity'] ?? null),
+            'unit' => trim((string)($item['unit'] ?? '')),
+            'unit_price' => normalizeExtractedInt($item['unit_price'] ?? null),
         ];
     }
 

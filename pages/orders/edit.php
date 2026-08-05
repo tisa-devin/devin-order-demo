@@ -349,7 +349,8 @@ function calculateTotals() {
         const price = parseInt(row.querySelector('.price').value) || 0;
         const taxRate = parseInt(row.querySelector('.tax').value) || 10;
         const amount = qty * price;
-        row.querySelector('.amount').value = amount.toLocaleString();
+        const hasInput = row.querySelector('.qty').value !== '' && row.querySelector('.price').value !== '';
+        row.querySelector('.amount').value = hasInput ? amount.toLocaleString() : '';
         subtotal += amount;
         taxTotal += Math.floor(amount * taxRate / 100);
     });
@@ -378,11 +379,20 @@ function appendExtractedItem(item) {
     if (!lastRow || !isRowEmpty(lastRow)) {
         addRow();
     }
-    const row = document.querySelectorAll('.detail-row')[document.querySelectorAll('.detail-row').length - 1];
+    const allRows = document.querySelectorAll('.detail-row');
+    const row = allRows[allRows.length - 1];
     row.querySelector('input[name$="[item_name]"]').value = item.item_name;
-    row.querySelector('.qty').value = item.quantity;
-    row.querySelector('input[name$="[unit]"]').value = item.unit;
-    row.querySelector('.price').value = item.unit_price;
+    row.querySelector('.qty').value = item.quantity ?? '';
+    row.querySelector('input[name$="[unit]"]').value = item.unit ?? '';
+    row.querySelector('.price').value = item.unit_price ?? '';
+
+    const nameCell = row.querySelector('input[name$="[item_name]"]').parentNode;
+    if (!nameCell.querySelector('.ai-badge')) {
+        const badge = document.createElement('span');
+        badge.className = 'badge bg-info text-dark ai-badge mt-1';
+        badge.innerHTML = '<i class="bi bi-stars"></i> AI抽出';
+        nameCell.appendChild(badge);
+    }
 }
 
 async function extractItemsFromImage() {
