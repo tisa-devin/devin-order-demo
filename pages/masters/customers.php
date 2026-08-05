@@ -202,7 +202,11 @@ $customers = $stmt->fetchAll();
         try {
             const formData = new FormData();
             formData.append('card_image', file);
-            const res = await fetch('<?= BASE_PATH ?>/pages/masters/extract_business_card.php', {
+            // ページURLに認証情報が含まれる場合、相対URLのままだとfetchが拒否されるため除去する
+            const endpoint = new URL('<?= BASE_PATH ?>/pages/masters/extract_business_card.php', location.href);
+            endpoint.username = '';
+            endpoint.password = '';
+            const res = await fetch(endpoint.toString(), {
                 method: 'POST',
                 body: formData
             });
