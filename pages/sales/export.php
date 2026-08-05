@@ -34,33 +34,43 @@ $salesAccount = $pdo->query("SELECT code, tax_class_code FROM accounts WHERE nam
 $salesAccountCode = $salesAccount['code'] ?? '4110';
 $taxClassCode = $salesAccount['tax_class_code'] ?? '0060';
 
-$csvHeader = [
-    '売上日', '売上番号', '受注番号', '請求書番号',
-    '顧客コード', '顧客名', '顧客勘定科目コード',
-    '借方科目コード', '貸方科目コード', '税区分コード',
-    '税抜金額', '消費税額', '税込金額', '摘要',
+$columnDefs = [
+    'sales_date' => ['label' => '売上日', 'numeric' => false, 'value' => fn($r) => date('Y/m/d', strtotime($r['sales_date']))],
+    'sales_no' => ['label' => '売上番号', 'numeric' => false, 'value' => fn($r) => $r['sales_no']],
+    'order_no' => ['label' => '受注番号', 'numeric' => false, 'value' => fn($r) => $r['order_no']],
+    'invoice_no' => ['label' => '請求書番号', 'numeric' => false, 'value' => fn($r) => $r['invoice_no'] ?? ''],
+    'customer_code' => ['label' => '顧客コード', 'numeric' => false, 'value' => fn($r) => $r['customer_code'] ?? ''],
+    'customer_name' => ['label' => '顧客名', 'numeric' => false, 'value' => fn($r) => $r['customer_name']],
+    'customer_accounting_code' => ['label' => '顧客勘定科目コード', 'numeric' => false, 'value' => fn($r) => $r['customer_accounting_code'] ?? ''],
+    'debit_code' => ['label' => '借方科目コード', 'numeric' => false, 'value' => fn($r) => $receivableCode],
+    'credit_code' => ['label' => '貸方科目コード', 'numeric' => false, 'value' => fn($r) => $salesAccountCode],
+    'tax_class_code' => ['label' => '税区分コード', 'numeric' => false, 'value' => fn($r) => $taxClassCode],
+    'net_amount' => ['label' => '税抜金額', 'numeric' => true, 'value' => fn($r) => (int)$r['total_amount'] - (int)$r['tax_amount']],
+    'tax_amount' => ['label' => '消費税額', 'numeric' => true, 'value' => fn($r) => (int)$r['tax_amount']],
+    'total_amount' => ['label' => '税込金額', 'numeric' => true, 'value' => fn($r) => (int)$r['total_amount']],
+    'note' => ['label' => '摘要', 'numeric' => false, 'value' => fn($r) => "売上計上 {$r['sales_no']} {$r['customer_name']}"],
 ];
 
-function buildCsvRow(array $row, string $receivableCode, string $salesAccountCode, string $taxClassCode): array {
-    $taxAmount = (int)$row['tax_amount'];
-    $totalAmount = (int)$row['total_amount'];
-    return [
-        date('Y/m/d', strtotime($row['sales_date'])),
-        $row['sales_no'],
-        $row['order_no'],
-        $row['invoice_no'] ?? '',
-        $row['customer_code'] ?? '',
-        $row['customer_name'],
-        $row['customer_accounting_code'] ?? '',
-        $receivableCode,
-        $salesAccountCode,
-        $taxClassCode,
-        $totalAmount - $taxAmount,
-        $taxAmount,
-        $totalAmount,
-        "売上計上 {$row['sales_no']} {$row['customer_name']}",
-    ];
+const COLUMN_COOKIE = 'sales_export_columns';
+
+if (isset($_GET['columns_submitted'])) {
+    $selectedColumns = array_values(array_intersect(array_keys($columnDefs), (array)($_GET['columns'] ?? [])));
+    setcookie(COLUMN_COOKIE, implode(',', $selectedColumns), time() + 60 * 60 * 24 * 365, '/');
+} elseif (isset($_COOKIE[COLUMN_COOKIE])) {
+    $selectedColumns = array_values(array_intersect(array_keys($columnDefs), explode(',', $_COOKIE[COLUMN_COOKIE])));
+} else {
+    $selectedColumns = array_keys($columnDefs);
 }
+
+if (empty($selectedColumns)) {
+    $selectedColumns = array_keys($columnDefs);
+}
+
+$csvHeader = array_map(fn($key) => $columnDefs[$key]['label'], $selectedColumns);
+
+$buildCsvRow = function (array $row) use ($columnDefs, $selectedColumns): array {
+    return array_map(fn($key) => $columnDefs[$key]['value']($row), $selectedColumns);
+};
 
 if ($download) {
     if ($markExported && !empty($rows)) {
@@ -79,7 +89,7 @@ if ($download) {
     fwrite($out, "\xEF\xBB\xBF");
     fputcsv($out, $csvHeader, ',', '"', '');
     foreach ($rows as $row) {
-        fputcsv($out, buildCsvRow($row, $receivableCode, $salesAccountCode, $taxClassCode), ',', '"', '');
+        fputcsv($out, $buildCsvRow($row), ',', '"', '');
     }
     fclose($out);
     exit;
@@ -95,6 +105,8 @@ $downloadQuery = http_build_query(array_filter([
     'date_to' => $dateTo,
     'unexported_only' => $unexportedOnly ? '1' : null,
     'mark_exported' => $markExported ? '1' : null,
+    'columns_submitted' => '1',
+    'columns' => $selectedColumns,
 ]));
 ?>
 
@@ -128,6 +140,23 @@ $downloadQuery = http_build_query(array_filter([
                 <button type="submit" class="btn btn-outline-primary">絞り込み</button>
                 <a href="export.php?<?= h($downloadQuery) ?>" class="btn btn-primary <?= empty($rows) ? 'disabled' : '' ?>"><i class="bi bi-download"></i> CSVダウンロード</a>
             </div>
+            <div class="col-12">
+                <label class="form-label">出力列</label>
+                <div class="d-flex flex-wrap gap-3">
+                    <?php foreach ($columnDefs as $key => $def): ?>
+                    <div class="form-check">
+                        <input type="checkbox" name="columns[]" value="<?= h($key) ?>" class="form-check-input column-check" id="col_<?= h($key) ?>" <?= in_array($key, $selectedColumns, true) ? 'checked' : '' ?>>
+                        <label class="form-check-label" for="col_<?= h($key) ?>"><?= h($def['label']) ?></label>
+                    </div>
+                    <?php endforeach; ?>
+                </div>
+                <div class="mt-2">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="selectAllColumns">全選択</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="clearAllColumns">全解除</button>
+                    <span class="text-muted small ms-2">選択した列構成は「絞り込み」時に保存され、次回以降の初期値になります。</span>
+                </div>
+            </div>
+            <input type="hidden" name="columns_submitted" value="1">
         </form>
     </div>
 </div>
@@ -151,8 +180,8 @@ $downloadQuery = http_build_query(array_filter([
                 <tbody>
                     <?php foreach ($rows as $row): ?>
                     <tr>
-                        <?php foreach (buildCsvRow($row, $receivableCode, $salesAccountCode, $taxClassCode) as $i => $value): ?>
-                        <td class="<?= in_array($i, [10, 11, 12], true) ? 'text-end' : '' ?>"><?= h($value) ?></td>
+                        <?php foreach ($buildCsvRow($row) as $i => $value): ?>
+                        <td class="<?= $columnDefs[$selectedColumns[$i]]['numeric'] ? 'text-end' : '' ?>"><?= h($value) ?></td>
                         <?php endforeach; ?>
                     </tr>
                     <?php endforeach; ?>
@@ -164,5 +193,14 @@ $downloadQuery = http_build_query(array_filter([
         </div>
     </div>
 </div>
+
+<script>
+document.getElementById('selectAllColumns').addEventListener('click', function () {
+    document.querySelectorAll('.column-check').forEach(cb => cb.checked = true);
+});
+document.getElementById('clearAllColumns').addEventListener('click', function () {
+    document.querySelectorAll('.column-check').forEach(cb => cb.checked = false);
+});
+</script>
 
 <?php require_once __DIR__ . '/../../includes/footer.php'; ?>
