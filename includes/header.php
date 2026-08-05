@@ -25,7 +25,52 @@ function formatDate($date): string {
     <title><?= h($pageTitle ?? '受発注・売上管理システム') ?></title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <script>
+        (function () {
+            var themes = ['blue', 'green', 'orange', 'dark'];
+            var theme = localStorage.getItem('theme');
+            if (themes.indexOf(theme) === -1) theme = 'blue';
+            document.documentElement.setAttribute('data-theme', theme);
+        })();
+    </script>
     <style>
+        :root {
+            --theme-color: #0d6efd;
+            --theme-color-hover: #0b5ed7;
+            --theme-text: #ffffff;
+        }
+        [data-theme="green"] {
+            --theme-color: #198754;
+            --theme-color-hover: #157347;
+            --theme-text: #ffffff;
+        }
+        [data-theme="orange"] {
+            --theme-color: #fd7e14;
+            --theme-color-hover: #e8690b;
+            --theme-text: #212529;
+        }
+        [data-theme="dark"] {
+            --theme-color: #212529;
+            --theme-color-hover: #1a1e21;
+            --theme-text: #ffffff;
+        }
+        .navbar { background-color: var(--theme-color) !important; }
+        .navbar .navbar-brand,
+        .navbar .nav-link,
+        .navbar .navbar-toggler { color: var(--theme-text) !important; }
+        .btn-primary {
+            background-color: var(--theme-color) !important;
+            border-color: var(--theme-color) !important;
+            color: var(--theme-text) !important;
+        }
+        .btn-primary:hover,
+        .btn-primary:focus,
+        .btn-primary:active {
+            background-color: var(--theme-color-hover) !important;
+            border-color: var(--theme-color-hover) !important;
+            color: var(--theme-text) !important;
+        }
+        #themeSelect { width: auto; }
         .navbar-brand { font-weight: bold; }
         .table th { white-space: nowrap; }
         .btn-action { padding: 0.25rem 0.5rem; font-size: 0.875rem; }
@@ -69,7 +114,26 @@ function formatDate($date): string {
                     <a class="nav-link" href="<?= BASE_PATH ?>/pages/sales/list.php">売上管理</a>
                 </li>
             </ul>
+            <div class="ms-auto">
+                <select class="form-select form-select-sm" id="themeSelect" aria-label="テーマ選択">
+                    <option value="blue">ブルー</option>
+                    <option value="green">グリーン</option>
+                    <option value="orange">オレンジ</option>
+                    <option value="dark">ダーク</option>
+                </select>
+            </div>
         </div>
     </div>
 </nav>
+<script>
+    (function () {
+        var select = document.getElementById('themeSelect');
+        if (!select) return;
+        select.value = document.documentElement.getAttribute('data-theme') || 'blue';
+        select.addEventListener('change', function () {
+            document.documentElement.setAttribute('data-theme', select.value);
+            localStorage.setItem('theme', select.value);
+        });
+    })();
+</script>
 <div class="container">
