@@ -2,6 +2,9 @@
 data/*.sqlite
 data/*.db
 
+# API keys (実キーはコミットしない)
+config/api_keys.local.php
+
 # IDE
 .idea/
 .vscode/
