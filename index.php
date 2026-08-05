@@ -43,6 +43,25 @@ for ($i = 5; $i >= 0; $i--) {
         'total' => (int)$stmt->fetch()['total'],
     ];
 }
+
+$orderStatusLabels = [
+    'ordered' => '受注',
+    'in_progress' => '進行中',
+    'completed' => '完了',
+    'cancelled' => 'キャンセル',
+];
+$stmt = $pdo->query("SELECT status, COUNT(*) as count FROM orders GROUP BY status");
+$statusCounts = [];
+foreach ($stmt->fetchAll() as $row) {
+    $statusCounts[$row['status']] = (int)$row['count'];
+}
+$orderStatusSummary = [];
+foreach ($orderStatusLabels as $status => $label) {
+    $orderStatusSummary[] = [
+        'label' => $label,
+        'count' => $statusCounts[$status] ?? 0,
+    ];
+}
 ?>
 
 <h2 class="mb-4"><i class="bi bi-speedometer2"></i> ダッシュボード</h2>
@@ -75,12 +94,26 @@ for ($i = 5; $i >= 0; $i--) {
     </div>
 </div>
 
-<div class="card mb-4">
-    <div class="card-header">
-        <i class="bi bi-bar-chart"></i> 月次売上推移（直近6ヶ月）
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card mb-4">
+            <div class="card-header">
+                <i class="bi bi-bar-chart"></i> 月次売上推移（直近6ヶ月）
+            </div>
+            <div class="card-body">
+                <canvas id="monthlySalesChart" height="120"></canvas>
+            </div>
+        </div>
     </div>
-    <div class="card-body">
-        <canvas id="monthlySalesChart" height="80"></canvas>
+    <div class="col-lg-4">
+        <div class="card mb-4">
+            <div class="card-header">
+                <i class="bi bi-pie-chart"></i> 受注ステータス別件数
+            </div>
+            <div class="card-body">
+                <canvas id="orderStatusChart" height="240"></canvas>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -186,6 +219,35 @@ for ($i = 5; $i >= 0; $i--) {
                     y: {
                         beginAtZero: true,
                         ticks: { callback: function (value) { return formatYen(value); } }
+                    }
+                }
+            }
+        });
+
+        var statusSummary = <?= json_encode($orderStatusSummary, JSON_UNESCAPED_UNICODE) ?>;
+        var statusTotal = statusSummary.reduce(function (sum, s) { return sum + s.count; }, 0);
+        new Chart(document.getElementById('orderStatusChart'), {
+            type: 'pie',
+            data: {
+                labels: statusSummary.map(function (s) { return s.label; }),
+                datasets: [{
+                    data: statusSummary.map(function (s) { return s.count; }),
+                    backgroundColor: ['#0d6efd', '#ffc107', '#198754', '#dc3545'],
+                    borderColor: '#fff',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { position: 'bottom' },
+                    tooltip: {
+                        callbacks: {
+                            label: function (context) {
+                                var ratio = statusTotal > 0 ? (context.parsed / statusTotal * 100).toFixed(1) : '0.0';
+                                return context.label + ': ' + context.parsed + '件（' + ratio + '%）';
+                            }
+                        }
                     }
                 }
             }
