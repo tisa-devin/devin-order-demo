@@ -200,6 +200,22 @@ $purchaseStatusLabels = [
     </div>
     
     <div class="card mb-4">
+        <div class="card-header">注文書画像から明細を取り込む</div>
+        <div class="card-body">
+            <div class="row g-2 align-items-end">
+                <div class="col-md-6">
+                    <label class="form-label">注文書画像（JPEG/PNG/GIF/WebP、上限10MB）</label>
+                    <input type="file" id="orderImage" class="form-control" accept="image/*">
+                </div>
+                <div class="col-md-3">
+                    <button type="button" id="extractBtn" class="btn btn-outline-primary"><i class="bi bi-magic"></i> 画像から明細を抽出</button>
+                </div>
+            </div>
+            <div id="extractStatus" class="mt-2 small text-muted">抽出結果は明細行に追加されます。内容を確認してから保存してください。</div>
+        </div>
+    </div>
+
+    <div class="card mb-4">
         <div class="card-header d-flex justify-content-between align-items-center">
             <span>明細</span>
             <button type="button" class="btn btn-sm btn-success" onclick="addRow()"><i class="bi bi-plus"></i> 行追加</button>
@@ -338,6 +354,66 @@ function attachEvents(row) {
         el.addEventListener('input', calculateTotals);
     });
 }
+
+function addRowWithValues(item) {
+    addRow();
+    const row = document.getElementById('detailsBody').lastElementChild;
+    row.classList.add('ai-extracted');
+    row.querySelector('input[name$="[item_name]"]').value = item.item_name ?? '';
+    row.querySelector('.qty').value = item.quantity ?? '';
+    row.querySelector('input[name$="[unit]"]').value = item.unit ?? '';
+    row.querySelector('.price').value = item.unit_price ?? '';
+
+    const badge = document.createElement('span');
+    badge.className = 'badge bg-info ms-1';
+    badge.textContent = 'AI抽出';
+    row.querySelector('.badge').insertAdjacentElement('afterend', badge);
+}
+
+function isEmptyRow(row) {
+    return row.querySelector('input[name$="[item_name]"]').value.trim() === '';
+}
+
+document.getElementById('extractBtn').addEventListener('click', async function () {
+    const input = document.getElementById('orderImage');
+    const status = document.getElementById('extractStatus');
+    if (!input.files.length) {
+        status.className = 'mt-2 small text-danger';
+        status.textContent = '画像を選択してください。';
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('image', input.files[0]);
+
+    this.disabled = true;
+    status.className = 'mt-2 small text-muted';
+    status.textContent = '抽出中です...（数十秒かかる場合があります）';
+
+    try {
+        const endpoint = new URL('extract_items.php', location.href);
+        endpoint.username = '';
+        endpoint.password = '';
+        const res = await fetch(endpoint, { method: 'POST', body: formData });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || '抽出に失敗しました');
+        if (!data.items.length) throw new Error('明細を抽出できませんでした');
+
+        document.querySelectorAll('.detail-row').forEach(row => {
+            if (isEmptyRow(row)) row.remove();
+        });
+        data.items.forEach(addRowWithValues);
+        calculateTotals();
+
+        status.className = 'mt-2 small text-success';
+        status.textContent = data.items.length + ' 件の明細を取り込みました。内容を確認してから保存してください。';
+    } catch (e) {
+        status.className = 'mt-2 small text-danger';
+        status.textContent = e.message;
+    } finally {
+        this.disabled = false;
+    }
+});
 
 document.querySelectorAll('.detail-row').forEach(attachEvents);
 calculateTotals();
