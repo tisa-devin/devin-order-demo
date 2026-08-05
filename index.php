@@ -55,6 +55,32 @@ foreach ($stmt->fetchAll() as $row) {
 
 $trendLabels = array_map(fn($m) => date('Y/m', strtotime($m . '-01')), array_keys($monthlyTrend));
 $trendValues = array_values($monthlyTrend);
+
+$orderStatusLabels = [
+    'ordered' => '受注',
+    'in_progress' => '進行中',
+    'completed' => '完了',
+    'cancelled' => 'キャンセル',
+];
+$orderStatusColors = [
+    'ordered' => '#0d6efd',
+    'in_progress' => '#ffc107',
+    'completed' => '#198754',
+    'cancelled' => '#dc3545',
+];
+
+$statusCounts = array_fill_keys(array_keys($orderStatusLabels), 0);
+$stmt = $pdo->query("SELECT status, COUNT(*) as count FROM orders GROUP BY status");
+foreach ($stmt->fetchAll() as $row) {
+    if (array_key_exists($row['status'], $statusCounts)) {
+        $statusCounts[$row['status']] = (int)$row['count'];
+    }
+}
+
+$statusChartLabels = array_values($orderStatusLabels);
+$statusChartValues = array_values($statusCounts);
+$statusChartColors = array_values($orderStatusColors);
+$hasOrderStatusData = array_sum($statusChartValues) > 0;
 ?>
 
 <h2 class="mb-4"><i class="bi bi-speedometer2"></i> ダッシュボード</h2>
@@ -87,12 +113,30 @@ $trendValues = array_values($monthlyTrend);
     </div>
 </div>
 
-<div class="card mb-4">
-    <div class="card-header">
-        <i class="bi bi-bar-chart"></i> 月次売上推移（直近6ヶ月）
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card mb-4">
+            <div class="card-header">
+                <i class="bi bi-bar-chart"></i> 月次売上推移（直近6ヶ月）
+            </div>
+            <div class="card-body">
+                <canvas id="monthlySalesChart" height="120"></canvas>
+            </div>
+        </div>
     </div>
-    <div class="card-body">
-        <canvas id="monthlySalesChart" height="80"></canvas>
+    <div class="col-lg-4">
+        <div class="card mb-4">
+            <div class="card-header">
+                <i class="bi bi-pie-chart"></i> 受注ステータス別件数
+            </div>
+            <div class="card-body">
+                <?php if (!$hasOrderStatusData): ?>
+                    <p class="text-muted mb-0">受注データはありません</p>
+                <?php else: ?>
+                    <canvas id="orderStatusChart" height="240"></canvas>
+                <?php endif; ?>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -201,6 +245,33 @@ $trendValues = array_values($monthlyTrend);
                     y: {
                         beginAtZero: true,
                         ticks: { callback: yen }
+                    }
+                }
+            }
+        });
+
+        var statusCanvas = document.getElementById('orderStatusChart');
+        if (!statusCanvas) return;
+        new Chart(statusCanvas, {
+            type: 'pie',
+            data: {
+                labels: <?= json_encode($statusChartLabels, JSON_UNESCAPED_UNICODE) ?>,
+                datasets: [{
+                    data: <?= json_encode($statusChartValues) ?>,
+                    backgroundColor: <?= json_encode($statusChartColors) ?>
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'bottom' },
+                    tooltip: {
+                        callbacks: {
+                            label: function (context) {
+                                return context.label + ': ' + context.parsed + '件';
+                            }
+                        }
                     }
                 }
             }
