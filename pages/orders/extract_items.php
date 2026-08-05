@@ -49,7 +49,7 @@ $payload = [
             'content' => 'あなたは注文書の読み取りアシスタントです。画像から明細行を抽出し、JSONのみを返してください。'
                 . '形式: {"items":[{"item_name":"品名","quantity":1,"unit":"式","unit_price":1000}]}。'
                 . 'quantity と unit_price は数値（円、税抜、カンマや通貨記号を除く）。'
-                . '読み取れない項目は quantity=1, unit_price=0, unit="式" とし、明細が無い場合は items を空配列にしてください。'
+                . '読み取れない項目は推測せず null を返してください。明細が無い場合は items を空配列にしてください。'
         ],
         [
             'role' => 'user',
@@ -99,11 +99,13 @@ foreach ($parsed['items'] as $item) {
     if ($name === '') {
         continue;
     }
+    $quantity = $item['quantity'] ?? null;
+    $unitPrice = $item['unit_price'] ?? null;
     $items[] = [
         'item_name' => $name,
-        'quantity' => max(1, (int)round((float)($item['quantity'] ?? 1))),
-        'unit' => trim((string)($item['unit'] ?? '')) ?: '式',
-        'unit_price' => max(0, (int)round((float)($item['unit_price'] ?? 0)))
+        'quantity' => is_numeric($quantity) ? max(0, (int)round((float)$quantity)) : null,
+        'unit' => trim((string)($item['unit'] ?? '')),
+        'unit_price' => is_numeric($unitPrice) ? max(0, (int)round((float)$unitPrice)) : null
     ];
 }
 

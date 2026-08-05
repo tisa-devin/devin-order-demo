@@ -358,10 +358,16 @@ function attachEvents(row) {
 function addRowWithValues(item) {
     addRow();
     const row = document.getElementById('detailsBody').lastElementChild;
-    row.querySelector('input[name$="[item_name]"]').value = item.item_name;
-    row.querySelector('.qty').value = item.quantity;
-    row.querySelector('input[name$="[unit]"]').value = item.unit;
-    row.querySelector('.price').value = item.unit_price;
+    row.classList.add('ai-extracted');
+    row.querySelector('input[name$="[item_name]"]').value = item.item_name ?? '';
+    row.querySelector('.qty').value = item.quantity ?? '';
+    row.querySelector('input[name$="[unit]"]').value = item.unit ?? '';
+    row.querySelector('.price').value = item.unit_price ?? '';
+
+    const badge = document.createElement('span');
+    badge.className = 'badge bg-info ms-1';
+    badge.textContent = 'AI抽出';
+    row.querySelector('.badge').insertAdjacentElement('afterend', badge);
 }
 
 function isEmptyRow(row) {
