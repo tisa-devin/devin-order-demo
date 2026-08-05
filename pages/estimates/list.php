@@ -2,6 +2,7 @@
 $pageTitle = '見積一覧';
 require_once __DIR__ . '/../../includes/header.php';
 require_once __DIR__ . '/../../includes/list_filters.php';
+require_once __DIR__ . '/../../includes/pagination.php';
 
 $pdo = getDB();
 
@@ -14,13 +15,14 @@ $statusLabels = [
 
 $filters = getListFilters();
 $params = [];
-$sql = "SELECT e.*, c.name as customer_name FROM estimates e JOIN customers c ON e.customer_id = c.id WHERE 1=1";
-$sql .= buildListFilterSql($filters, ['e.estimate_no', 'e.subject', 'c.name'], 'c.name', 'e.estimate_date', 'e.status', $params);
-$sql .= " ORDER BY e.estimate_date DESC, e.id DESC";
+$fromSql = " FROM estimates e JOIN customers c ON e.customer_id = c.id WHERE 1=1";
+$fromSql .= buildListFilterSql($filters, ['e.estimate_no', 'e.subject', 'c.name'], 'c.name', 'e.estimate_date', 'e.status', $params);
 
-$stmt = $pdo->prepare($sql);
-$stmt->execute($params);
-$estimates = $stmt->fetchAll();
+$currentPage = getCurrentPage();
+$result = fetchPaginated($pdo, "SELECT e.*, c.name as customer_name", $fromSql, " ORDER BY e.estimate_date DESC, e.id DESC", $params, $currentPage);
+$estimates = $result['rows'];
+$totalCount = $result['total'];
+$currentPage = $result['page'];
 ?>
 
 <div class="d-flex justify-content-between align-items-center mb-4">
@@ -72,6 +74,7 @@ $estimates = $stmt->fetchAll();
                 <?php endif; ?>
             </tbody>
         </table>
+        <?php renderPagination($currentPage, $totalCount); ?>
     </div>
 </div>
 

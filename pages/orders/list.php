@@ -18,21 +18,11 @@ $params = [];
 $fromSql = " FROM orders o JOIN customers c ON o.customer_id = c.id WHERE 1=1";
 $fromSql .= buildListFilterSql($filters, ['o.order_no', 'o.subject', 'c.name'], 'c.name', 'o.order_date', 'o.status', $params);
 
-$countStmt = $pdo->prepare("SELECT COUNT(*)" . $fromSql);
-$countStmt->execute($params);
-$totalCount = (int)$countStmt->fetchColumn();
-
 $currentPage = getCurrentPage();
-$offset = ($currentPage - 1) * PER_PAGE;
-
-$stmt = $pdo->prepare("SELECT o.*, c.name as customer_name" . $fromSql . " ORDER BY o.order_date DESC, o.id DESC LIMIT ? OFFSET ?");
-foreach ($params as $i => $param) {
-    $stmt->bindValue($i + 1, $param);
-}
-$stmt->bindValue(count($params) + 1, PER_PAGE, PDO::PARAM_INT);
-$stmt->bindValue(count($params) + 2, $offset, PDO::PARAM_INT);
-$stmt->execute();
-$orders = $stmt->fetchAll();
+$result = fetchPaginated($pdo, "SELECT o.*, c.name as customer_name", $fromSql, " ORDER BY o.order_date DESC, o.id DESC", $params, $currentPage);
+$orders = $result['rows'];
+$totalCount = $result['total'];
+$currentPage = $result['page'];
 ?>
 
 <div class="d-flex justify-content-between align-items-center mb-4">
@@ -84,9 +74,6 @@ $orders = $stmt->fetchAll();
                 <?php endif; ?>
             </tbody>
         </table>
-        <?php if ($totalCount > 0): ?>
-        <div class="text-muted small">全<?= formatNumber($totalCount) ?>件中 <?= formatNumber($offset + 1) ?>～<?= formatNumber(min($offset + PER_PAGE, $totalCount)) ?>件を表示</div>
-        <?php endif; ?>
         <?php renderPagination($currentPage, $totalCount); ?>
     </div>
 </div>

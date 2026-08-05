@@ -1,31 +1,32 @@
 <?php
 $pageTitle = '発注一覧';
 require_once __DIR__ . '/../../includes/header.php';
+require_once __DIR__ . '/../../includes/pagination.php';
 
 $pdo = getDB();
 
 $search = $_GET['search'] ?? '';
 $status = $_GET['status'] ?? '';
 
-$sql = "SELECT p.*, s.name as supplier_name, o.order_no FROM purchases p JOIN suppliers s ON p.supplier_id = s.id JOIN orders o ON p.order_id = o.id WHERE 1=1";
+$fromSql = " FROM purchases p JOIN suppliers s ON p.supplier_id = s.id JOIN orders o ON p.order_id = o.id WHERE 1=1";
 $params = [];
 
 if ($search) {
-    $sql .= " AND (p.purchase_no LIKE ? OR s.name LIKE ? OR o.order_no LIKE ?)";
+    $fromSql .= " AND (p.purchase_no LIKE ? OR s.name LIKE ? OR o.order_no LIKE ?)";
     $params[] = "%$search%";
     $params[] = "%$search%";
     $params[] = "%$search%";
 }
 if ($status) {
-    $sql .= " AND p.status = ?";
+    $fromSql .= " AND p.status = ?";
     $params[] = $status;
 }
 
-$sql .= " ORDER BY p.purchase_date DESC, p.id DESC";
-
-$stmt = $pdo->prepare($sql);
-$stmt->execute($params);
-$purchases = $stmt->fetchAll();
+$currentPage = getCurrentPage();
+$result = fetchPaginated($pdo, "SELECT p.*, s.name as supplier_name, o.order_no", $fromSql, " ORDER BY p.purchase_date DESC, p.id DESC", $params, $currentPage);
+$purchases = $result['rows'];
+$totalCount = $result['total'];
+$currentPage = $result['page'];
 
 $statusLabels = [
     'ordered' => ['label' => '発注済', 'class' => 'primary'],
@@ -108,6 +109,7 @@ $statusLabels = [
                 <?php endif; ?>
             </tbody>
         </table>
+        <?php renderPagination($currentPage, $totalCount); ?>
     </div>
 </div>
 

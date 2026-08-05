@@ -20,9 +20,40 @@ function pageUrl(int $page): string {
 }
 
 /**
- * Bootstrap のページネーションを描画する
+ * 件数を数えた上で現在ページ分のレコードを取得する
+ *
+ * @param string $selectSql SELECT句（例: 'SELECT o.*, c.name as customer_name'）
+ * @param string $fromSql FROM以降のWHERE句まで（件数取得と共用）
+ * @param string $orderSql ORDER BY句
+ * @param array $params 絞り込み条件のバインド値
+ * @return array ['rows' => 取得行, 'total' => 全件数, 'page' => 最終ページを超えないよう補正したページ番号]
+ */
+function fetchPaginated(PDO $pdo, string $selectSql, string $fromSql, string $orderSql, array $params, int $currentPage): array {
+    $countStmt = $pdo->prepare('SELECT COUNT(*)' . $fromSql);
+    $countStmt->execute($params);
+    $totalCount = (int)$countStmt->fetchColumn();
+    $currentPage = min($currentPage, max(1, (int)ceil($totalCount / PER_PAGE)));
+
+    $stmt = $pdo->prepare($selectSql . $fromSql . $orderSql . ' LIMIT ? OFFSET ?');
+    foreach ($params as $i => $param) {
+        $stmt->bindValue($i + 1, $param);
+    }
+    $stmt->bindValue(count($params) + 1, PER_PAGE, PDO::PARAM_INT);
+    $stmt->bindValue(count($params) + 2, ($currentPage - 1) * PER_PAGE, PDO::PARAM_INT);
+    $stmt->execute();
+
+    return ['rows' => $stmt->fetchAll(), 'total' => $totalCount, 'page' => $currentPage];
+}
+
+/**
+ * 表示件数の案内と Bootstrap のページネーションを描画する
  */
 function renderPagination(int $currentPage, int $totalCount, int $perPage = PER_PAGE): void {
+    if ($totalCount > 0) {
+        $offset = ($currentPage - 1) * $perPage;
+        echo '<div class="text-muted small">全' . formatNumber($totalCount) . '件中 '
+            . formatNumber($offset + 1) . '～' . formatNumber(min($offset + $perPage, $totalCount)) . '件を表示</div>';
+    }
     $totalPages = (int)ceil($totalCount / $perPage);
     if ($totalPages <= 1) return;
 ?>
