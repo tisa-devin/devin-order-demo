@@ -13,6 +13,10 @@ function initializeDatabase(): void {
             postal_code TEXT,
             address TEXT,
             tel TEXT,
+            contact_name TEXT,
+            email TEXT,
+            department TEXT,
+            job_title TEXT,
             accounting_code TEXT,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -177,6 +181,32 @@ function initializeDatabase(): void {
         INSERT OR IGNORE INTO sequences (name, current_value) VALUES ('invoice', 0);
         INSERT OR IGNORE INTO sequences (name, current_value) VALUES ('acceptance', 0);
     ");
+
+    migrateDatabase();
+}
+
+/**
+ * 既存DBに対する追加カラムのマイグレーション。
+ */
+function migrateDatabase(): void {
+    $pdo = getDB();
+
+    $existing = [];
+    foreach ($pdo->query("PRAGMA table_info(customers)") as $column) {
+        $existing[] = $column['name'];
+    }
+
+    $additions = [
+        'contact_name' => 'TEXT',
+        'email' => 'TEXT',
+        'department' => 'TEXT',
+        'job_title' => 'TEXT',
+    ];
+    foreach ($additions as $name => $type) {
+        if (!in_array($name, $existing, true)) {
+            $pdo->exec("ALTER TABLE customers ADD COLUMN {$name} {$type}");
+        }
+    }
 }
 
 function getNextNumber(string $type): string {
