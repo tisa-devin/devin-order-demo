@@ -2,6 +2,9 @@
 data/*.sqlite
 data/*.db
 
+# Secrets
+config/secrets.php
+
 # IDE
 .idea/
 .vscode/

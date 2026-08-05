@@ -76,6 +76,24 @@ $customers = $stmt->fetchAll();
         <?= $editCustomer ? '顧客編集' : '顧客登録' ?>
     </div>
     <div class="card-body">
+        <?php if (!$editCustomer): ?>
+        <div class="border rounded p-3 mb-3 bg-light">
+            <div class="row align-items-end">
+                <div class="col-md-6 mb-2">
+                    <label class="form-label"><i class="bi bi-camera"></i> 名刺画像</label>
+                    <input type="file" id="cardImage" class="form-control" accept="image/*" capture="environment">
+                </div>
+                <div class="col-md-6 mb-2">
+                    <button type="button" id="cardReadBtn" class="btn btn-outline-primary">
+                        <span id="cardSpinner" class="spinner-border spinner-border-sm d-none" role="status"></span>
+                        名刺から読み取り
+                    </button>
+                    <span class="text-muted ms-2">※抽出後に内容を確認・修正して登録してください（顧客コードは自動入力されません）</span>
+                </div>
+            </div>
+            <div id="cardMessage" class="mt-2"></div>
+        </div>
+        <?php endif; ?>
         <form method="post">
             <input type="hidden" name="action" value="<?= $editCustomer ? 'update' : 'create' ?>">
             <?php if ($editCustomer): ?>
@@ -158,5 +176,62 @@ $customers = $stmt->fetchAll();
         </table>
     </div>
 </div>
+
+<?php if (!$editCustomer): ?>
+<script>
+(function () {
+    const input = document.getElementById('cardImage');
+    const btn = document.getElementById('cardReadBtn');
+    const spinner = document.getElementById('cardSpinner');
+    const message = document.getElementById('cardMessage');
+    if (!input || !btn) return;
+
+    function showMessage(text, type) {
+        message.innerHTML = text ? '<div class="alert alert-' + type + ' py-2 mb-0">' + text + '</div>' : '';
+    }
+
+    btn.addEventListener('click', async function () {
+        const file = input.files && input.files[0];
+        if (!file) {
+            showMessage('名刺画像を選択してください', 'warning');
+            return;
+        }
+        showMessage('', '');
+        btn.disabled = true;
+        spinner.classList.remove('d-none');
+        try {
+            const formData = new FormData();
+            formData.append('card_image', file);
+            const res = await fetch('<?= BASE_PATH ?>/pages/masters/extract_business_card.php', {
+                method: 'POST',
+                body: formData
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                showMessage(data.error || '読み取りに失敗しました', 'danger');
+                return;
+            }
+            const form = document.querySelector('form[method="post"]');
+            const map = {
+                name: data.company_name,
+                postal_code: data.postal_code,
+                address: data.address,
+                tel: data.tel
+            };
+            Object.keys(map).forEach(function (key) {
+                const el = form.querySelector('[name="' + key + '"]');
+                if (el && map[key]) el.value = map[key];
+            });
+            showMessage('読み取りが完了しました。内容を確認・修正して登録してください。', 'success');
+        } catch (e) {
+            showMessage('読み取り中にエラーが発生しました: ' + e.message, 'danger');
+        } finally {
+            btn.disabled = false;
+            spinner.classList.add('d-none');
+        }
+    });
+})();
+</script>
+<?php endif; ?>
 
 <?php require_once __DIR__ . '/../../includes/footer.php'; ?>
