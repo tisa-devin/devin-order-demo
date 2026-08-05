@@ -1,0 +1,9 @@
+<?php
+/**
+ * このファイルを api_keys.local.php としてコピーし、実キーを設定する。
+ * api_keys.local.php は .gitignore 済みでコミットされない。
+ */
+
+return [
+    'OPENAI_API_KEY' => 'sk-xxxxxxxxxxxxxxxxxxxxxxxx',
+];

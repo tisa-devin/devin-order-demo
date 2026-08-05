@@ -252,6 +252,16 @@ $customers = $stmt->fetchAll();
         <?= $editCustomer ? '顧客編集' : '顧客登録' ?>
     </div>
     <div class="card-body">
+        <div class="border rounded p-3 mb-3 bg-light">
+            <label class="form-label mb-1"><i class="bi bi-camera"></i> 名刺から読み取り</label>
+            <div class="d-flex flex-wrap align-items-center gap-2">
+                <input type="file" id="cardImage" class="form-control" style="max-width: 420px" accept="image/*" capture="environment">
+                <button type="button" id="cardOcrButton" class="btn btn-outline-primary">読み取る</button>
+                <span id="cardOcrStatus" class="text-muted small"></span>
+            </div>
+            <div class="form-text">名刺を撮影または選択すると、会社名・郵便番号・住所・電話番号を下のフォームに自動入力します。内容を確認・修正してから登録してください（顧客コードは自動入力されません）。</div>
+        </div>
+
         <form method="post">
             <input type="hidden" name="action" value="<?= $editCustomer ? 'update' : 'create' ?>">
             <?php if ($editCustomer): ?>
@@ -334,5 +344,50 @@ $customers = $stmt->fetchAll();
         </table>
     </div>
 </div>
+
+<script>
+    // 名刺画像をOCRエンドポイントへ送り、登録フォームに自動入力する（登録はユーザーの確認後）
+    const cardImage = document.getElementById('cardImage');
+    const cardOcrButton = document.getElementById('cardOcrButton');
+    const cardOcrStatus = document.getElementById('cardOcrStatus');
+
+    cardOcrButton.addEventListener('click', async () => {
+        if (!cardImage.files.length) {
+            cardOcrStatus.className = 'text-danger small';
+            cardOcrStatus.textContent = '名刺画像を選択してください';
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('card_image', cardImage.files[0]);
+
+        cardOcrButton.disabled = true;
+        cardOcrStatus.className = 'text-muted small';
+        cardOcrStatus.textContent = '読み取り中...';
+
+        try {
+            const response = await fetch('business_card_ocr.php', { method: 'POST', body: formData });
+            const result = await response.json();
+            if (result.error) {
+                cardOcrStatus.className = 'text-danger small';
+                cardOcrStatus.textContent = result.error;
+                return;
+            }
+
+            ['name', 'postal_code', 'address', 'tel'].forEach(field => {
+                if (result[field]) {
+                    document.querySelector(`[name="${field}"]`).value = result[field];
+                }
+            });
+            cardOcrStatus.className = 'text-success small';
+            cardOcrStatus.textContent = '読み取りました。内容を確認して登録してください';
+        } catch (e) {
+            cardOcrStatus.className = 'text-danger small';
+            cardOcrStatus.textContent = '読み取りに失敗しました: ' + e.message;
+        } finally {
+            cardOcrButton.disabled = false;
+        }
+    });
+</script>
 
 <?php require_once __DIR__ . '/../../includes/footer.php'; ?>
