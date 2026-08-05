@@ -11,3 +11,6 @@ data/*.db
 # OS
 .DS_Store
 Thumbs.db
+
+# 環境変数（APIキーなど）
+.env

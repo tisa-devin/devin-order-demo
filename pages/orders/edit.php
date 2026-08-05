@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../config/init_db.php';
+require_once __DIR__ . '/../../config/env.php';
 
 initializeDatabase();
 
@@ -132,6 +133,8 @@ $purchaseStatusLabels = [
     'ordered' => ['label' => '発注済', 'class' => 'primary'],
     'received' => ['label' => '検収済', 'class' => 'success']
 ];
+
+$hasOpenAiKey = getOpenAiApiKey() !== null;
 ?>
 
 <div class="d-flex justify-content-between align-items-center mb-4">
@@ -200,6 +203,26 @@ $purchaseStatusLabels = [
     </div>
     
     <div class="card mb-4">
+        <div class="card-header">注文書画像から明細を取り込む</div>
+        <div class="card-body">
+            <?php if (!$hasOpenAiKey): ?>
+            <div class="alert alert-warning mb-0">OPENAI_API_KEY が未設定のためこの機能は利用できません。<code>.env.example</code> を参考に <code>.env</code> または環境変数を設定してください。</div>
+            <?php else: ?>
+            <div class="row g-2 align-items-center">
+                <div class="col-md-6">
+                    <input type="file" id="orderImage" class="form-control" accept="image/*">
+                </div>
+                <div class="col-md-6">
+                    <button type="button" id="extractBtn" class="btn btn-outline-primary"><i class="bi bi-magic"></i> 画像から明細を抽出</button>
+                    <span id="extractStatus" class="ms-2 text-muted small"></span>
+                </div>
+            </div>
+            <p class="text-muted small mb-0 mt-2">抽出結果は「AI抽出」バッジ付きで明細行に追加されるだけです。読み取れなかった項目は空欄になるため、内容を確認・補完してから「保存」してください。</p>
+            <?php endif; ?>
+        </div>
+    </div>
+
+    <div class="card mb-4">
         <div class="card-header d-flex justify-content-between align-items-center">
             <span>明細</span>
             <button type="button" class="btn btn-sm btn-success" onclick="addRow()"><i class="bi bi-plus"></i> 行追加</button>
@@ -228,7 +251,7 @@ $purchaseStatusLabels = [
                         <td><input type="number" name="items[0][unit_price]" class="form-control form-control-sm price" value="0"></td>
                         <td><input type="text" class="form-control form-control-sm amount" value="0" readonly></td>
                         <td><select name="items[0][tax_rate]" class="form-select form-select-sm tax"><option value="10">10%</option><option value="8">8%</option></select></td>
-                        <td><span class="badge bg-secondary">未発注</span></td>
+                        <td class="status-cell"><span class="badge bg-secondary">未発注</span></td>
                         <td><input type="text" name="items[0][notes]" class="form-control form-control-sm"></td>
                         <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="removeRow(this)"><i class="bi bi-trash"></i></button></td>
                     </tr>
@@ -241,7 +264,7 @@ $purchaseStatusLabels = [
                         <td><input type="number" name="items[<?= $i ?>][unit_price]" class="form-control form-control-sm price" value="<?= $d['unit_price'] ?>"></td>
                         <td><input type="text" class="form-control form-control-sm amount" value="<?= formatNumber($d['amount']) ?>" readonly></td>
                         <td><select name="items[<?= $i ?>][tax_rate]" class="form-select form-select-sm tax"><option value="10" <?= $d['tax_rate'] == 10 ? 'selected' : '' ?>>10%</option><option value="8" <?= $d['tax_rate'] == 8 ? 'selected' : '' ?>>8%</option></select></td>
-                        <td>
+                        <td class="status-cell">
                             <?php $ps = $purchaseStatusLabels[$d['purchase_status'] ?? 'none'] ?? $purchaseStatusLabels['none']; ?>
                             <span class="badge bg-<?= $ps['class'] ?>"><?= $ps['label'] ?></span>
                         </td>
@@ -290,7 +313,7 @@ $purchaseStatusLabels = [
 <script>
 let rowIndex = <?= max(count($details), 1) ?>;
 
-function addRow() {
+function addRow(values) {
     const tbody = document.getElementById('detailsBody');
     const tr = document.createElement('tr');
     tr.className = 'detail-row';
@@ -301,13 +324,29 @@ function addRow() {
         <td><input type="number" name="items[${rowIndex}][unit_price]" class="form-control form-control-sm price" value="0"></td>
         <td><input type="text" class="form-control form-control-sm amount" value="0" readonly></td>
         <td><select name="items[${rowIndex}][tax_rate]" class="form-select form-select-sm tax"><option value="10">10%</option><option value="8">8%</option></select></td>
-        <td><span class="badge bg-secondary">未発注</span></td>
+        <td class="status-cell"><span class="badge bg-secondary">未発注</span></td>
         <td><input type="text" name="items[${rowIndex}][notes]" class="form-control form-control-sm"></td>
         <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="removeRow(this)"><i class="bi bi-trash"></i></button></td>
     `;
     tbody.appendChild(tr);
     rowIndex++;
+    if (values) {
+        tr.querySelector('input[name$="[item_name]"]').value = values.item_name ?? '';
+        tr.querySelector('.qty').value = values.quantity ?? '';
+        tr.querySelector('input[name$="[unit]"]').value = values.unit ?? '';
+        tr.querySelector('.price').value = values.unit_price ?? '';
+        const badge = document.createElement('span');
+        badge.className = 'badge bg-info text-dark ms-1';
+        badge.textContent = 'AI抽出';
+        tr.querySelector('.status-cell').appendChild(badge);
+    }
     attachEvents(tr);
+    return tr;
+}
+
+function isRowEmpty(row) {
+    return !row.querySelector('input[name$="[item_name]"]').value.trim()
+        && !parseInt(row.querySelector('.price').value);
 }
 
 function removeRow(btn) {
@@ -341,6 +380,50 @@ function attachEvents(row) {
 
 document.querySelectorAll('.detail-row').forEach(attachEvents);
 calculateTotals();
+
+const extractBtn = document.getElementById('extractBtn');
+if (extractBtn) {
+    extractBtn.addEventListener('click', async function () {
+        const input = document.getElementById('orderImage');
+        const status = document.getElementById('extractStatus');
+        const file = input.files[0];
+        if (!file) {
+            status.textContent = '画像を選択してください';
+            return;
+        }
+
+        const body = new FormData();
+        body.append('image', file);
+        extractBtn.disabled = true;
+        status.textContent = '解析中...';
+
+        try {
+            const endpoint = new URL('extract_items.php', window.location.href);
+            endpoint.username = '';
+            endpoint.password = '';
+            const res = await fetch(endpoint.toString(), { method: 'POST', body: body, credentials: 'include' });
+            const data = await res.json();
+            if (!res.ok) {
+                status.textContent = 'エラー: ' + (data.error || res.status);
+                return;
+            }
+            if (!data.items.length) {
+                status.textContent = '明細を抽出できませんでした';
+                return;
+            }
+            document.querySelectorAll('.detail-row').forEach(row => {
+                if (isRowEmpty(row)) row.remove();
+            });
+            data.items.forEach(addRow);
+            calculateTotals();
+            status.textContent = data.items.length + '件を明細に追加しました（内容を確認して保存してください）';
+        } catch (e) {
+            status.textContent = 'エラー: ' + e.message;
+        } finally {
+            extractBtn.disabled = false;
+        }
+    });
+}
 </script>
 
 <?php require_once __DIR__ . '/../../includes/footer.php'; ?>
