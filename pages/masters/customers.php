@@ -425,7 +425,8 @@ $customers = $stmt->fetchAll();
         setLoading(true);
         var fd = new FormData();
         fd.append('image', input.files[0]);
-        fetch('<?= BASE_PATH ?>/pages/masters/business_card_ocr.php', { method: 'POST', body: fd })
+        var endpoint = window.location.origin + '<?= BASE_PATH ?>/pages/masters/business_card_ocr.php';
+        fetch(endpoint, { method: 'POST', body: fd })
             .then(function (r) { return r.json(); })
             .then(function (json) {
                 if (!json.success) {
