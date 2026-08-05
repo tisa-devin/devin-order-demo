@@ -217,7 +217,7 @@ $hasOpenAiKey = getOpenAiApiKey() !== null;
                     <span id="extractStatus" class="ms-2 text-muted small"></span>
                 </div>
             </div>
-            <p class="text-muted small mb-0 mt-2">抽出結果は明細行に追加されるだけです。内容を確認してから「保存」してください。</p>
+            <p class="text-muted small mb-0 mt-2">抽出結果は「AI抽出」バッジ付きで明細行に追加されるだけです。読み取れなかった項目は空欄になるため、内容を確認・補完してから「保存」してください。</p>
             <?php endif; ?>
         </div>
     </div>
@@ -251,7 +251,7 @@ $hasOpenAiKey = getOpenAiApiKey() !== null;
                         <td><input type="number" name="items[0][unit_price]" class="form-control form-control-sm price" value="0"></td>
                         <td><input type="text" class="form-control form-control-sm amount" value="0" readonly></td>
                         <td><select name="items[0][tax_rate]" class="form-select form-select-sm tax"><option value="10">10%</option><option value="8">8%</option></select></td>
-                        <td><span class="badge bg-secondary">未発注</span></td>
+                        <td class="status-cell"><span class="badge bg-secondary">未発注</span></td>
                         <td><input type="text" name="items[0][notes]" class="form-control form-control-sm"></td>
                         <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="removeRow(this)"><i class="bi bi-trash"></i></button></td>
                     </tr>
@@ -264,7 +264,7 @@ $hasOpenAiKey = getOpenAiApiKey() !== null;
                         <td><input type="number" name="items[<?= $i ?>][unit_price]" class="form-control form-control-sm price" value="<?= $d['unit_price'] ?>"></td>
                         <td><input type="text" class="form-control form-control-sm amount" value="<?= formatNumber($d['amount']) ?>" readonly></td>
                         <td><select name="items[<?= $i ?>][tax_rate]" class="form-select form-select-sm tax"><option value="10" <?= $d['tax_rate'] == 10 ? 'selected' : '' ?>>10%</option><option value="8" <?= $d['tax_rate'] == 8 ? 'selected' : '' ?>>8%</option></select></td>
-                        <td>
+                        <td class="status-cell">
                             <?php $ps = $purchaseStatusLabels[$d['purchase_status'] ?? 'none'] ?? $purchaseStatusLabels['none']; ?>
                             <span class="badge bg-<?= $ps['class'] ?>"><?= $ps['label'] ?></span>
                         </td>
@@ -324,17 +324,21 @@ function addRow(values) {
         <td><input type="number" name="items[${rowIndex}][unit_price]" class="form-control form-control-sm price" value="0"></td>
         <td><input type="text" class="form-control form-control-sm amount" value="0" readonly></td>
         <td><select name="items[${rowIndex}][tax_rate]" class="form-select form-select-sm tax"><option value="10">10%</option><option value="8">8%</option></select></td>
-        <td><span class="badge bg-secondary">未発注</span></td>
+        <td class="status-cell"><span class="badge bg-secondary">未発注</span></td>
         <td><input type="text" name="items[${rowIndex}][notes]" class="form-control form-control-sm"></td>
         <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="removeRow(this)"><i class="bi bi-trash"></i></button></td>
     `;
     tbody.appendChild(tr);
     rowIndex++;
     if (values) {
-        tr.querySelector('input[name$="[item_name]"]').value = values.item_name;
-        tr.querySelector('.qty').value = values.quantity;
-        tr.querySelector('input[name$="[unit]"]').value = values.unit;
-        tr.querySelector('.price').value = values.unit_price;
+        tr.querySelector('input[name$="[item_name]"]').value = values.item_name ?? '';
+        tr.querySelector('.qty').value = values.quantity ?? '';
+        tr.querySelector('input[name$="[unit]"]').value = values.unit ?? '';
+        tr.querySelector('.price').value = values.unit_price ?? '';
+        const badge = document.createElement('span');
+        badge.className = 'badge bg-info text-dark ms-1';
+        badge.textContent = 'AI抽出';
+        tr.querySelector('.status-cell').appendChild(badge);
     }
     attachEvents(tr);
     return tr;

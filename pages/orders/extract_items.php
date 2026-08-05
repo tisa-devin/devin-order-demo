@@ -45,9 +45,10 @@ $prompt = <<<PROMPT
 
 制約:
 - item_name は品名・品目名（文字列）
-- quantity は数量（整数、不明な場合は1）
-- unit は単位（式・個・本など。不明な場合は "式"）
-- unit_price は税抜の単価（整数、円。カンマや通貨記号は除去する。金額しか読み取れない場合は 金額 ÷ 数量 を単価とする）
+- quantity は数量（整数）
+- unit は単位（式・個・本など）
+- unit_price は税抜の単価（整数、円。カンマや通貨記号は除去する。金額と数量から計算できる場合は 金額 ÷ 数量 を単価とする）
+- 読み取れない項目は推測せず null にする（既定値で埋めない）
 - 小計・消費税・合計などの集計行は明細に含めない
 - 読み取れない場合は items を空配列にする
 PROMPT;
@@ -78,10 +79,10 @@ $payload = [
                             'additionalProperties' => false,
                             'required' => ['item_name', 'quantity', 'unit', 'unit_price'],
                             'properties' => [
-                                'item_name' => ['type' => 'string'],
-                                'quantity' => ['type' => 'integer'],
-                                'unit' => ['type' => 'string'],
-                                'unit_price' => ['type' => 'integer'],
+                                'item_name' => ['type' => ['string', 'null']],
+                                'quantity' => ['type' => ['integer', 'null']],
+                                'unit' => ['type' => ['string', 'null']],
+                                'unit_price' => ['type' => ['integer', 'null']],
                             ],
                         ],
                     ],
@@ -121,17 +122,35 @@ if (!is_array($parsed) || !isset($parsed['items']) || !is_array($parsed['items']
     respondError('抽出結果を解釈できませんでした', 502);
 }
 
+/** 抽出できなかった項目は null のまま返し、画面では空欄にする */
+function nullableText(mixed $value): ?string {
+    $text = trim((string)($value ?? ''));
+    return $text === '' ? null : $text;
+}
+
+function nullableInt(mixed $value): ?int {
+    if ($value === null || $value === '') {
+        return null;
+    }
+    return max(0, (int)$value);
+}
+
 $items = [];
 foreach ($parsed['items'] as $item) {
-    $name = trim((string)($item['item_name'] ?? ''));
-    if ($name === '') {
+    $name = nullableText($item['item_name'] ?? null);
+    $quantity = nullableInt($item['quantity'] ?? null);
+    $unitPrice = nullableInt($item['unit_price'] ?? null);
+    $unit = nullableText($item['unit'] ?? null);
+
+    if ($name === null && $quantity === null && $unitPrice === null && $unit === null) {
         continue;
     }
+
     $items[] = [
         'item_name' => $name,
-        'quantity' => max(1, (int)($item['quantity'] ?? 1)),
-        'unit' => trim((string)($item['unit'] ?? '')) ?: '式',
-        'unit_price' => max(0, (int)($item['unit_price'] ?? 0)),
+        'quantity' => $quantity,
+        'unit' => $unit,
+        'unit_price' => $unitPrice,
     ];
 }
 
