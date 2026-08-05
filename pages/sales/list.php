@@ -67,40 +67,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $pageTitle = '売上一覧';
 require_once __DIR__ . '/../../includes/header.php';
+require_once __DIR__ . '/../../includes/pagination.php';
 
 $search = $_GET['search'] ?? '';
 $exported = $_GET['exported'] ?? '';
 $date_from = $_GET['date_from'] ?? '';
 $date_to = $_GET['date_to'] ?? '';
 
-$sql = "SELECT s.*, c.name as customer_name, o.order_no FROM sales s JOIN customers c ON s.customer_id = c.id JOIN orders o ON s.order_id = o.id WHERE 1=1";
+$fromSql = " FROM sales s JOIN customers c ON s.customer_id = c.id JOIN orders o ON s.order_id = o.id WHERE 1=1";
 $params = [];
 
 if ($search) {
-    $sql .= " AND (s.sales_no LIKE ? OR s.invoice_no LIKE ? OR c.name LIKE ? OR o.order_no LIKE ?)";
+    $fromSql .= " AND (s.sales_no LIKE ? OR s.invoice_no LIKE ? OR c.name LIKE ? OR o.order_no LIKE ?)";
     $params[] = "%$search%";
     $params[] = "%$search%";
     $params[] = "%$search%";
     $params[] = "%$search%";
 }
 if ($exported !== '') {
-    $sql .= " AND s.exported = ?";
+    $fromSql .= " AND s.exported = ?";
     $params[] = $exported;
 }
 if ($date_from) {
-    $sql .= " AND s.sales_date >= ?";
+    $fromSql .= " AND s.sales_date >= ?";
     $params[] = $date_from;
 }
 if ($date_to) {
-    $sql .= " AND s.sales_date <= ?";
+    $fromSql .= " AND s.sales_date <= ?";
     $params[] = $date_to;
 }
 
-$sql .= " ORDER BY s.sales_date DESC, s.id DESC";
-
-$stmt = $pdo->prepare($sql);
-$stmt->execute($params);
-$salesList = $stmt->fetchAll();
+$currentPage = getCurrentPage();
+$result = fetchPaginated($pdo, "SELECT s.*, c.name as customer_name, o.order_no", $fromSql, " ORDER BY s.sales_date DESC, s.id DESC", $params, $currentPage);
+$salesList = $result['rows'];
+$totalCount = $result['total'];
+$currentPage = $result['page'];
 ?>
 
 <div class="d-flex justify-content-between align-items-center mb-4">
@@ -189,6 +190,7 @@ $salesList = $stmt->fetchAll();
                     <?php endif; ?>
                 </tbody>
             </table>
+            <?php renderPagination($currentPage, $totalCount); ?>
         </div>
     </div>
 </form>
