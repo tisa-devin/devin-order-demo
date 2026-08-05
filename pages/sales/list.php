@@ -106,7 +106,10 @@ $currentPage = $result['page'];
 
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2><i class="bi bi-graph-up"></i> 売上一覧</h2>
-    <a href="edit.php" class="btn btn-primary"><i class="bi bi-plus"></i> 新規売上</a>
+    <div>
+        <a href="export.php" class="btn btn-outline-success"><i class="bi bi-file-earmark-spreadsheet"></i> 会計連携CSV出力</a>
+        <a href="edit.php" class="btn btn-primary"><i class="bi bi-plus"></i> 新規売上</a>
+    </div>
 </div>
 
 <div class="card mb-4">
