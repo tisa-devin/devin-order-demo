@@ -27,7 +27,9 @@ function formatDate($date): string {
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
     <script>
         (function () {
-            var theme = localStorage.getItem('theme') || 'blue';
+            var themes = ['blue', 'green', 'orange', 'dark'];
+            var theme = localStorage.getItem('theme');
+            if (themes.indexOf(theme) === -1) theme = 'blue';
             document.documentElement.setAttribute('data-theme', theme);
         })();
     </script>
@@ -42,9 +44,9 @@ function formatDate($date): string {
             --theme-color-hover: #157347;
             --theme-text: #ffffff;
         }
-        [data-theme="yellow"] {
-            --theme-color: #ffc107;
-            --theme-color-hover: #ffca2c;
+        [data-theme="orange"] {
+            --theme-color: #fd7e14;
+            --theme-color-hover: #e8690b;
             --theme-text: #212529;
         }
         [data-theme="dark"] {
@@ -116,7 +118,7 @@ function formatDate($date): string {
                 <select class="form-select form-select-sm" id="themeSelect" aria-label="テーマ選択">
                     <option value="blue">ブルー</option>
                     <option value="green">グリーン</option>
-                    <option value="yellow">イエロー</option>
+                    <option value="orange">オレンジ</option>
                     <option value="dark">ダーク</option>
                 </select>
             </div>
