@@ -172,6 +172,18 @@ $customers = $stmt->fetchAll();
             <button type="button" class="btn btn-sm btn-success" onclick="addRow()"><i class="bi bi-plus"></i> 行追加</button>
         </div>
         <div class="card-body">
+            <div class="border rounded p-3 mb-3 bg-light">
+                <label class="form-label mb-1"><i class="bi bi-robot"></i> AIで明細を作成</label>
+                <div class="input-group">
+                    <input type="text" id="aiPrompt" class="form-control" placeholder="例: システム設計と開発、テストで100万円くらい">
+                    <button type="button" id="aiGenerateBtn" class="btn btn-outline-primary">
+                        <span id="aiGenerateLabel">明細を生成</span>
+                        <span id="aiSpinner" class="spinner-border spinner-border-sm d-none" role="status"></span>
+                    </button>
+                </div>
+                <div id="aiResult" class="small mt-2"></div>
+                <p class="text-warning small mb-0 mt-1"><i class="bi bi-exclamation-triangle"></i> AIが生成した参考値です。内容を確認してください。</p>
+            </div>
             <table class="table" id="detailsTable">
                 <thead>
                     <tr>
@@ -301,6 +313,79 @@ function attachEvents(row) {
 
 document.querySelectorAll('.detail-row').forEach(attachEvents);
 calculateTotals();
+
+function escapeHtml(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+}
+
+function addAiRow(item) {
+    const tbody = document.getElementById('detailsBody');
+    const tr = document.createElement('tr');
+    tr.className = 'detail-row';
+    const taxRate = (parseInt(item.tax_rate) === 8) ? 8 : 10;
+    const qty = parseInt(item.quantity) || 1;
+    const price = parseInt(item.unit_price) || 0;
+    tr.innerHTML = `
+        <td><input type="text" name="items[${rowIndex}][item_name]" class="form-control form-control-sm" value="${escapeHtml(item.item_name)}"></td>
+        <td><input type="number" name="items[${rowIndex}][quantity]" class="form-control form-control-sm qty" value="${qty}" min="1"></td>
+        <td><input type="text" name="items[${rowIndex}][unit]" class="form-control form-control-sm" value="${escapeHtml(item.unit || '式')}"></td>
+        <td><input type="number" name="items[${rowIndex}][unit_price]" class="form-control form-control-sm price" value="${price}"></td>
+        <td><input type="text" class="form-control form-control-sm amount" value="0" readonly></td>
+        <td><select name="items[${rowIndex}][tax_rate]" class="form-select form-select-sm tax"><option value="10" ${taxRate === 10 ? 'selected' : ''}>10%</option><option value="8" ${taxRate === 8 ? 'selected' : ''}>8%</option></select></td>
+        <td><input type="text" name="items[${rowIndex}][notes]" class="form-control form-control-sm"></td>
+        <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="removeRow(this)"><i class="bi bi-trash"></i></button></td>
+    `;
+    tbody.appendChild(tr);
+    rowIndex++;
+    attachEvents(tr);
+}
+
+(function () {
+    const btn = document.getElementById('aiGenerateBtn');
+    const promptEl = document.getElementById('aiPrompt');
+    const resultEl = document.getElementById('aiResult');
+    const spinner = document.getElementById('aiSpinner');
+    const label = document.getElementById('aiGenerateLabel');
+    if (!btn) return;
+
+    function setLoading(loading) {
+        btn.disabled = loading;
+        spinner.classList.toggle('d-none', !loading);
+        label.textContent = loading ? '生成中...' : '明細を生成';
+    }
+
+    btn.addEventListener('click', function () {
+        const text = promptEl.value.trim();
+        if (!text) {
+            resultEl.innerHTML = '<span class="text-danger">要望テキストを入力してください</span>';
+            return;
+        }
+        resultEl.textContent = '';
+        setLoading(true);
+        const fd = new FormData();
+        fd.append('prompt', text);
+        const endpoint = window.location.origin + '<?= BASE_PATH ?>/pages/estimates/generate_items.php';
+        fetch(endpoint, { method: 'POST', body: fd })
+            .then(function (r) { return r.json(); })
+            .then(function (json) {
+                if (!json.success) {
+                    resultEl.innerHTML = '<span class="text-danger">生成に失敗しました: ' + (json.error || '不明なエラー') + '</span>';
+                    return;
+                }
+                const items = json.items || [];
+                document.getElementById('detailsBody').innerHTML = '';
+                items.forEach(addAiRow);
+                calculateTotals();
+                resultEl.innerHTML = '<span class="text-success">' + items.length + ' 行の明細を生成しました。内容を確認・修正して保存してください。</span>';
+            })
+            .catch(function (e) {
+                resultEl.innerHTML = '<span class="text-danger">通信エラー: ' + e.message + '</span>';
+            })
+            .finally(function () { setLoading(false); });
+    });
+})();
 </script>
 
 <?php require_once __DIR__ . '/../../includes/footer.php'; ?>
