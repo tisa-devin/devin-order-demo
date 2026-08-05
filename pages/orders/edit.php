@@ -394,7 +394,10 @@ if (extractBtn) {
         status.textContent = '解析中...';
 
         try {
-            const res = await fetch('extract_items.php', { method: 'POST', body: body });
+            const endpoint = new URL('extract_items.php', window.location.href);
+            endpoint.username = '';
+            endpoint.password = '';
+            const res = await fetch(endpoint.toString(), { method: 'POST', body: body, credentials: 'include' });
             const data = await res.json();
             if (!res.ok) {
                 status.textContent = 'エラー: ' + (data.error || res.status);
