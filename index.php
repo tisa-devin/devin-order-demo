@@ -32,6 +32,20 @@ foreach ($stmt->fetchAll() as $row) {
 }
 $trendLabels = array_map(fn($month) => date('Y/m', strtotime($month . '-01')), array_keys($monthlyTrend));
 
+// 受注ステータス別の件数
+$orderStatusLabels = [
+    'ordered' => ['label' => '受注', 'color' => '#0d6efd'],
+    'in_progress' => ['label' => '進行中', 'color' => '#ffc107'],
+    'completed' => ['label' => '完了', 'color' => '#198754'],
+    'cancelled' => ['label' => 'キャンセル', 'color' => '#dc3545'],
+];
+$statusCounts = array_fill_keys(array_keys($orderStatusLabels), 0);
+foreach ($pdo->query("SELECT status, COUNT(*) as count FROM orders GROUP BY status") as $row) {
+    if (isset($statusCounts[$row['status']])) {
+        $statusCounts[$row['status']] = (int)$row['count'];
+    }
+}
+
 $stmt = $pdo->query("
     SELECT o.*, c.name as customer_name 
     FROM orders o 
@@ -84,12 +98,26 @@ $pendingPurchases = $stmt->fetchAll();
     </div>
 </div>
 
-<div class="card mb-4">
-    <div class="card-header">
-        <i class="bi bi-bar-chart"></i> 月次売上推移（直近6ヶ月）
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card mb-4">
+            <div class="card-header">
+                <i class="bi bi-bar-chart"></i> 月次売上推移（直近6ヶ月）
+            </div>
+            <div class="card-body">
+                <canvas id="monthlySalesChart" height="120"></canvas>
+            </div>
+        </div>
     </div>
-    <div class="card-body">
-        <canvas id="monthlySalesChart" height="80"></canvas>
+    <div class="col-lg-4">
+        <div class="card mb-4">
+            <div class="card-header">
+                <i class="bi bi-pie-chart"></i> 受注ステータス別件数
+            </div>
+            <div class="card-body">
+                <canvas id="orderStatusChart" height="240"></canvas>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -184,6 +212,23 @@ $pendingPurchases = $stmt->fetchAll();
             },
             scales: {
                 y: { beginAtZero: true, ticks: { callback: value => formatYen(value) } }
+            }
+        }
+    });
+
+    new Chart(document.getElementById('orderStatusChart'), {
+        type: 'pie',
+        data: {
+            labels: <?= json_encode(array_column($orderStatusLabels, 'label'), JSON_UNESCAPED_UNICODE) ?>,
+            datasets: [{
+                data: <?= json_encode(array_values($statusCounts)) ?>,
+                backgroundColor: <?= json_encode(array_column($orderStatusLabels, 'color')) ?>
+            }]
+        },
+        options: {
+            plugins: {
+                legend: { position: 'bottom' },
+                tooltip: { callbacks: { label: context => context.label + ': ' + Number(context.parsed).toLocaleString('ja-JP') + '件' } }
             }
         }
     });
