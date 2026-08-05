@@ -77,10 +77,12 @@ for ($i = 5; $i >= 0; $i--) {
 
 <div class="card mb-4">
     <div class="card-header">
-        <i class="bi bi-bar-chart"></i> 月次売上推移（直近6ヶ月）
+        <i class="bi bi-pie-chart"></i> 月次売上構成比（直近6ヶ月）
     </div>
     <div class="card-body">
-        <canvas id="monthlySalesChart" height="80"></canvas>
+        <div class="mx-auto" style="max-width: 420px;">
+            <canvas id="monthlySalesChart"></canvas>
+        </div>
     </div>
 </div>
 
@@ -160,32 +162,31 @@ for ($i = 5; $i >= 0; $i--) {
         var formatYen = function (value) {
             return '\u00a5' + Number(value).toLocaleString('ja-JP');
         };
+        var total = trend.reduce(function (sum, m) { return sum + m.total; }, 0);
+        var colors = ['#0d6efd', '#198754', '#fd7e14', '#6f42c1', '#20c997', '#dc3545'];
         new Chart(document.getElementById('monthlySalesChart'), {
-            type: 'bar',
+            type: 'pie',
             data: {
                 labels: trend.map(function (m) { return m.label; }),
                 datasets: [{
-                    label: '売上金額',
                     data: trend.map(function (m) { return m.total; }),
-                    backgroundColor: 'rgba(13, 110, 253, 0.6)',
-                    borderColor: 'rgba(13, 110, 253, 1)',
+                    backgroundColor: colors,
+                    borderColor: '#fff',
                     borderWidth: 1
                 }]
             },
             options: {
                 responsive: true,
                 plugins: {
-                    legend: { display: false },
+                    legend: { position: 'right' },
                     tooltip: {
                         callbacks: {
-                            label: function (context) { return formatYen(context.parsed.y); }
+                            label: function (context) {
+                                var value = context.parsed;
+                                var ratio = total > 0 ? (value / total * 100).toFixed(1) : '0.0';
+                                return context.label + ': ' + formatYen(value) + '（' + ratio + '%）';
+                            }
                         }
-                    }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        ticks: { callback: function (value) { return formatYen(value); } }
                     }
                 }
             }
