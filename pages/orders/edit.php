@@ -403,7 +403,9 @@ async function extractItemsFromImage() {
     status.textContent = '画像を解析しています...';
 
     try {
-        const response = await fetch('extract_items.php', { method: 'POST', body: formData });
+        // location.origin を基準にする（URLに認証情報が含まれる場合、相対パスのfetchはブラウザに拒否される）
+        const endpoint = new URL('extract_items.php', location.origin + location.pathname).toString();
+        const response = await fetch(endpoint, { method: 'POST', body: formData });
         const data = await response.json();
         if (!response.ok) {
             throw new Error(data.error || '抽出に失敗しました');
