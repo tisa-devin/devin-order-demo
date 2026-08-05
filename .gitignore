@@ -2,6 +2,9 @@
 data/*.sqlite
 data/*.db
 
+# APIキー等の実設定
+config/.env
+
 # IDE
 .idea/
 .vscode/

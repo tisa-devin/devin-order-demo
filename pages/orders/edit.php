@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../config/init_db.php';
+require_once __DIR__ . '/../../config/openai.php';
 
 initializeDatabase();
 
@@ -200,6 +201,31 @@ $purchaseStatusLabels = [
     </div>
     
     <div class="card mb-4">
+        <div class="card-header">
+            <i class="bi bi-image"></i> 注文書画像から明細を取り込む
+        </div>
+        <div class="card-body">
+            <?php if (!isOpenAiConfigured()): ?>
+            <div class="alert alert-warning mb-0">
+                OPENAI_API_KEY が未設定のためこの機能は利用できません。環境変数または <code>config/.env</code>（<code>config/.env.example</code> 参照）に設定してください。
+            </div>
+            <?php else: ?>
+            <div class="row g-2 align-items-end">
+                <div class="col-md-6">
+                    <label class="form-label">注文書画像（JPEG / PNG / WebP / GIF）</label>
+                    <input type="file" id="orderImage" accept="image/*" class="form-control">
+                </div>
+                <div class="col-md-3">
+                    <button type="button" id="extractButton" class="btn btn-primary" onclick="extractItemsFromImage()">画像から明細を抽出</button>
+                </div>
+            </div>
+            <div id="extractStatus" class="small mt-2"></div>
+            <p class="text-muted small mt-2 mb-0">抽出結果は明細行に追加されるだけです。内容を確認してから「保存」してください。</p>
+            <?php endif; ?>
+        </div>
+    </div>
+
+    <div class="card mb-4">
         <div class="card-header d-flex justify-content-between align-items-center">
             <span>明細</span>
             <button type="button" class="btn btn-sm btn-success" onclick="addRow()"><i class="bi bi-plus"></i> 行追加</button>
@@ -323,7 +349,8 @@ function calculateTotals() {
         const price = parseInt(row.querySelector('.price').value) || 0;
         const taxRate = parseInt(row.querySelector('.tax').value) || 10;
         const amount = qty * price;
-        row.querySelector('.amount').value = amount.toLocaleString();
+        const hasInput = row.querySelector('.qty').value !== '' && row.querySelector('.price').value !== '';
+        row.querySelector('.amount').value = hasInput ? amount.toLocaleString() : '';
         subtotal += amount;
         taxTotal += Math.floor(amount * taxRate / 100);
     });
@@ -341,6 +368,75 @@ function attachEvents(row) {
 
 document.querySelectorAll('.detail-row').forEach(attachEvents);
 calculateTotals();
+
+function isRowEmpty(row) {
+    return !row.querySelector('input[name$="[item_name]"]').value.trim();
+}
+
+function appendExtractedItem(item) {
+    const rows = document.querySelectorAll('.detail-row');
+    const lastRow = rows[rows.length - 1];
+    if (!lastRow || !isRowEmpty(lastRow)) {
+        addRow();
+    }
+    const allRows = document.querySelectorAll('.detail-row');
+    const row = allRows[allRows.length - 1];
+    row.querySelector('input[name$="[item_name]"]').value = item.item_name;
+    row.querySelector('.qty').value = item.quantity ?? '';
+    row.querySelector('input[name$="[unit]"]').value = item.unit ?? '';
+    row.querySelector('.price').value = item.unit_price ?? '';
+
+    const nameCell = row.querySelector('input[name$="[item_name]"]').parentNode;
+    if (!nameCell.querySelector('.ai-badge')) {
+        const badge = document.createElement('span');
+        badge.className = 'badge bg-info text-dark ai-badge mt-1';
+        badge.innerHTML = '<i class="bi bi-stars"></i> AI抽出';
+        nameCell.appendChild(badge);
+    }
+}
+
+async function extractItemsFromImage() {
+    const input = document.getElementById('orderImage');
+    const status = document.getElementById('extractStatus');
+    const button = document.getElementById('extractButton');
+    if (!input.files.length) {
+        status.className = 'small mt-2 text-danger';
+        status.textContent = '画像ファイルを選択してください';
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('image', input.files[0]);
+
+    button.disabled = true;
+    status.className = 'small mt-2 text-muted';
+    status.textContent = '画像を解析しています...';
+
+    try {
+        // location.origin を基準にする（URLに認証情報が含まれる場合、相対パスのfetchはブラウザに拒否される）
+        const endpoint = new URL('extract_items.php', location.origin + location.pathname).toString();
+        const response = await fetch(endpoint, { method: 'POST', body: formData });
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.error || '抽出に失敗しました');
+        }
+        if (!data.items.length) {
+            status.className = 'small mt-2 text-warning';
+            status.textContent = '明細を読み取れませんでした';
+            return;
+        }
+        data.items.forEach(appendExtractedItem);
+        document.querySelectorAll('.detail-row').forEach(attachEvents);
+        calculateTotals();
+        status.className = 'small mt-2 text-success';
+        status.textContent = data.items.length + '件の明細を追加しました。内容を確認して「保存」してください。';
+    } catch (e) {
+        status.className = 'small mt-2 text-danger';
+        status.textContent = e.message;
+    } finally {
+        button.disabled = false;
+    }
+}
 </script>
 
 <?php require_once __DIR__ . '/../../includes/footer.php'; ?>
