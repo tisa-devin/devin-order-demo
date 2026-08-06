@@ -53,6 +53,23 @@ foreach ($stmt->fetchAll() as $row) {
 }
 $trendLabels = array_map(fn($month) => date('Y/m', strtotime($month . '-01')), array_keys($monthlyTrend));
 $trendValues = array_values($monthlyTrend);
+
+$orderStatusLabels = [
+    'ordered' => ['label' => '受注', 'color' => '#0d6efd'],
+    'in_progress' => ['label' => '進行中', 'color' => '#ffc107'],
+    'completed' => ['label' => '完了', 'color' => '#198754'],
+    'cancelled' => ['label' => 'キャンセル', 'color' => '#dc3545']
+];
+$orderStatusCounts = array_fill_keys(array_keys($orderStatusLabels), 0);
+$stmt = $pdo->query("SELECT status, COUNT(*) as count FROM orders GROUP BY status");
+foreach ($stmt->fetchAll() as $row) {
+    if (array_key_exists($row['status'], $orderStatusCounts)) {
+        $orderStatusCounts[$row['status']] = (int)$row['count'];
+    }
+}
+$statusChartLabels = array_map(fn($status) => $orderStatusLabels[$status]['label'], array_keys($orderStatusCounts));
+$statusChartColors = array_map(fn($status) => $orderStatusLabels[$status]['color'], array_keys($orderStatusCounts));
+$statusChartValues = array_values($orderStatusCounts);
 ?>
 
 <h2 class="mb-4"><i class="bi bi-speedometer2"></i> ダッシュボード</h2>
@@ -85,12 +102,26 @@ $trendValues = array_values($monthlyTrend);
     </div>
 </div>
 
-<div class="card mb-4">
-    <div class="card-header">
-        <i class="bi bi-bar-chart"></i> 月次売上推移（直近6ヶ月）
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card mb-4">
+            <div class="card-header">
+                <i class="bi bi-bar-chart"></i> 月次売上推移（直近6ヶ月）
+            </div>
+            <div class="card-body">
+                <canvas id="monthlySalesChart" height="160"></canvas>
+            </div>
+        </div>
     </div>
-    <div class="card-body">
-        <canvas id="monthlySalesChart" height="100"></canvas>
+    <div class="col-lg-4">
+        <div class="card mb-4">
+            <div class="card-header">
+                <i class="bi bi-pie-chart"></i> 受注ステータス別件数
+            </div>
+            <div class="card-body">
+                <canvas id="orderStatusChart" height="320"></canvas>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -206,6 +237,29 @@ $trendValues = array_values($monthlyTrend);
         window.addEventListener('themechange', function () {
             chart.data.datasets[0].backgroundColor = chartColor();
             chart.update();
+        });
+
+        new Chart(document.getElementById('orderStatusChart'), {
+            type: 'pie',
+            data: {
+                labels: <?= json_encode($statusChartLabels, JSON_UNESCAPED_UNICODE) ?>,
+                datasets: [{
+                    data: <?= json_encode($statusChartValues) ?>,
+                    backgroundColor: <?= json_encode($statusChartColors) ?>
+                }]
+            },
+            options: {
+                plugins: {
+                    legend: { position: 'bottom' },
+                    tooltip: {
+                        callbacks: {
+                            label: function (context) {
+                                return context.label + ': ' + formatter.format(context.parsed) + '件';
+                            }
+                        }
+                    }
+                }
+            }
         });
     })();
 </script>
