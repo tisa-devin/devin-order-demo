@@ -225,7 +225,17 @@ $customers = $stmt->fetchAll();
                         <span id="cardScanSpinner" class="spinner-border spinner-border-sm d-none" role="status"></span>
                         読み取って自動入力
                     </button>
+                    <button type="button" id="cameraStartButton" class="btn btn-outline-secondary">
+                        <i class="bi bi-camera-video"></i> カメラで撮影
+                    </button>
                     <span class="text-muted small ms-2">顧客コードは自動入力されません。内容を確認・修正して登録してください。</span>
+                </div>
+            </div>
+            <div id="cameraArea" class="mt-3 d-none">
+                <video id="cameraVideo" class="border rounded w-100" style="max-width: 480px;" playsinline muted></video>
+                <div class="mt-2">
+                    <button type="button" id="cameraCaptureButton" class="btn btn-primary btn-sm">撮影して読み取る</button>
+                    <button type="button" id="cameraStopButton" class="btn btn-secondary btn-sm">カメラを閉じる</button>
                 </div>
             </div>
             <div id="cardScanMessage" class="mt-2 mb-0"></div>
@@ -405,21 +415,23 @@ $customers = $stmt->fetchAll();
     var spinner = document.getElementById('cardScanSpinner');
     var messageBox = document.getElementById('cardScanMessage');
     var form = document.getElementById('customerForm');
+    var cameraArea = document.getElementById('cameraArea');
+    var video = document.getElementById('cameraVideo');
+    var cameraStartButton = document.getElementById('cameraStartButton');
+    var cameraStopButton = document.getElementById('cameraStopButton');
+    var cameraCaptureButton = document.getElementById('cameraCaptureButton');
+    var stream = null;
 
     function showMessage(text, type) {
         messageBox.innerHTML = '<div class="alert alert-' + type + ' py-2 mb-0">' + text + '</div>';
     }
 
-    button.addEventListener('click', function () {
-        if (!input.files || input.files.length === 0) {
-            showMessage('名刺画像を選択または撮影してください。', 'warning');
-            return;
-        }
-
+    function scan(blob) {
         var body = new FormData();
-        body.append('image', input.files[0]);
+        body.append('image', blob, blob.name || 'card.jpg');
 
         button.disabled = true;
+        cameraCaptureButton.disabled = true;
         spinner.classList.remove('d-none');
         showMessage('読み取り中です...', 'info');
 
@@ -455,9 +467,69 @@ $customers = $stmt->fetchAll();
             })
             .finally(function () {
                 button.disabled = false;
+                cameraCaptureButton.disabled = false;
                 spinner.classList.add('d-none');
             });
+    }
+
+    function stopCamera() {
+        if (stream) {
+            stream.getTracks().forEach(function (track) { track.stop(); });
+            stream = null;
+        }
+        video.srcObject = null;
+        cameraArea.classList.add('d-none');
+    }
+
+    button.addEventListener('click', function () {
+        if (!input.files || input.files.length === 0) {
+            showMessage('名刺画像を選択または撮影してください。', 'warning');
+            return;
+        }
+        scan(input.files[0]);
     });
+
+    cameraStartButton.addEventListener('click', function () {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            showMessage('このブラウザはカメラ撮影に対応していません。', 'danger');
+            return;
+        }
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1920 } } })
+            .then(function (mediaStream) {
+                stream = mediaStream;
+                video.srcObject = mediaStream;
+                cameraArea.classList.remove('d-none');
+                showMessage('名刺が枠内に収まるように置き、「撮影して読み取る」を押してください。', 'info');
+                return video.play();
+            })
+            .catch(function (e) {
+                // HTTPSでない場合やカメラ権限が拒否された場合はここに来る
+                showMessage('カメラを起動できませんでした（' + e.name + '）。ブラウザのカメラ権限とHTTPS接続を確認してください。', 'danger');
+            });
+    });
+
+    cameraStopButton.addEventListener('click', stopCamera);
+
+    cameraCaptureButton.addEventListener('click', function () {
+        if (!stream) {
+            showMessage('先に「カメラで撮影」を押してカメラを起動してください。', 'warning');
+            return;
+        }
+        var canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob(function (blob) {
+            if (!blob) {
+                showMessage('撮影に失敗しました。もう一度お試しください。', 'danger');
+                return;
+            }
+            stopCamera();
+            scan(blob);
+        }, 'image/jpeg', 0.92);
+    });
+
+    window.addEventListener('beforeunload', stopCamera);
 })();
 </script>
 
