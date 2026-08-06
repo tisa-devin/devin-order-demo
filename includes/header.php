@@ -30,6 +30,8 @@ function formatDate($date): string {
             --theme-main: #0d6efd;
             --theme-hover: #0b5ed7;
             --theme-nav: #0d6efd;
+            --theme-outline: var(--theme-main);
+            --theme-outline-hover-color: #fff;
         }
         [data-theme="green"] {
             --theme-main: #198754;
@@ -42,9 +44,11 @@ function formatDate($date): string {
             --theme-nav: #fd7e14;
         }
         [data-theme="dark"] {
-            --theme-main: #343a40;
-            --theme-hover: #23272b;
+            --theme-main: #495057;
+            --theme-hover: #5c636a;
             --theme-nav: #212529;
+            --theme-outline: #adb5bd;
+            --theme-outline-hover-color: #212529;
         }
         [data-theme="pink"] {
             --theme-main: #d63384;
@@ -63,12 +67,14 @@ function formatDate($date): string {
             --bs-btn-disabled-border-color: var(--theme-main);
         }
         .btn-outline-primary {
-            --bs-btn-color: var(--theme-main);
-            --bs-btn-border-color: var(--theme-main);
-            --bs-btn-hover-bg: var(--theme-main);
-            --bs-btn-hover-border-color: var(--theme-main);
-            --bs-btn-active-bg: var(--theme-main);
-            --bs-btn-active-border-color: var(--theme-main);
+            --bs-btn-color: var(--theme-outline);
+            --bs-btn-border-color: var(--theme-outline);
+            --bs-btn-hover-bg: var(--theme-outline);
+            --bs-btn-hover-border-color: var(--theme-outline);
+            --bs-btn-hover-color: var(--theme-outline-hover-color);
+            --bs-btn-active-bg: var(--theme-outline);
+            --bs-btn-active-border-color: var(--theme-outline);
+            --bs-btn-active-color: var(--theme-outline-hover-color);
         }
         .theme-select {
             width: auto;
