@@ -105,7 +105,10 @@ $salesList = $stmt->fetchAll();
 
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2><i class="bi bi-graph-up"></i> 売上一覧</h2>
-    <a href="edit.php" class="btn btn-primary"><i class="bi bi-plus"></i> 新規売上</a>
+    <div>
+        <a href="export.php" class="btn btn-outline-primary"><i class="bi bi-filetype-csv"></i> CSV出力（期間指定）</a>
+        <a href="edit.php" class="btn btn-primary"><i class="bi bi-plus"></i> 新規売上</a>
+    </div>
 </div>
 
 <div class="card mb-4">
