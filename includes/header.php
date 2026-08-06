@@ -32,7 +32,28 @@ function formatDate($date): string {
         }
         [data-theme="green"] { --theme-main: #198754; --theme-hover: #157347; }
         [data-theme="orange"] { --theme-main: #fd7e14; --theme-hover: #e8690b; }
-        [data-theme="dark"] { --theme-main: #343a40; --theme-hover: #23272b; }
+        [data-theme="dark"] { --theme-main: #5a6570; --theme-hover: #6c757d; }
+        [data-theme="dark"] .navbar.bg-primary { background-color: #343a40 !important; }
+        [data-theme="dark"] .btn-outline-primary {
+            --bs-btn-color: #8ab4ff;
+            --bs-btn-border-color: #8ab4ff;
+            --bs-btn-hover-bg: #8ab4ff;
+            --bs-btn-hover-color: #1e2125;
+        }
+        [data-theme="dark"] .alert-success {
+            background-color: #1c3b2a;
+            border-color: #2f6b47;
+            color: #a3e0bd;
+        }
+        [data-theme="dark"] .alert-danger {
+            background-color: #3d2226;
+            border-color: #6e343c;
+            color: #f0a8b0;
+        }
+        [data-theme="dark"] .table > thead {
+            --bs-table-bg: #3a4046;
+            --bs-table-color: #fff;
+        }
         [data-theme="dark"] body {
             background-color: #1e2125;
             color: #e9ecef;

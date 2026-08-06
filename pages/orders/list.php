@@ -5,6 +5,9 @@ require_once __DIR__ . '/../../includes/header.php';
 $pdo = getDB();
 
 $search = $_GET['search'] ?? '';
+$customerName = $_GET['customer_name'] ?? '';
+$dateFrom = $_GET['date_from'] ?? '';
+$dateTo = $_GET['date_to'] ?? '';
 $status = $_GET['status'] ?? '';
 
 $sql = "SELECT o.*, c.name as customer_name FROM orders o JOIN customers c ON o.customer_id = c.id WHERE 1=1";
@@ -15,6 +18,18 @@ if ($search) {
     $params[] = "%$search%";
     $params[] = "%$search%";
     $params[] = "%$search%";
+}
+if ($customerName) {
+    $sql .= " AND c.name LIKE ?";
+    $params[] = "%$customerName%";
+}
+if ($dateFrom) {
+    $sql .= " AND o.order_date >= ?";
+    $params[] = $dateFrom;
+}
+if ($dateTo) {
+    $sql .= " AND o.order_date <= ?";
+    $params[] = $dateTo;
 }
 if ($status) {
     $sql .= " AND o.status = ?";
@@ -44,9 +59,15 @@ $statusLabels = [
     <div class="card-body">
         <form method="get" class="row g-3">
             <div class="col-md-4">
+                <label class="form-label">キーワード</label>
                 <input type="text" name="search" class="form-control" placeholder="受注番号・件名・顧客名で検索" value="<?= h($search) ?>">
             </div>
-            <div class="col-md-3">
+            <div class="col-md-4">
+                <label class="form-label">顧客名</label>
+                <input type="text" name="customer_name" class="form-control" placeholder="顧客名（部分一致）" value="<?= h($customerName) ?>">
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">ステータス</label>
                 <select name="status" class="form-select">
                     <option value="">全てのステータス</option>
                     <?php foreach ($statusLabels as $key => $val): ?>
@@ -54,9 +75,17 @@ $statusLabels = [
                     <?php endforeach; ?>
                 </select>
             </div>
-            <div class="col-md-2">
-                <button type="submit" class="btn btn-outline-primary">検索</button>
-                <a href="list.php" class="btn btn-outline-secondary">クリア</a>
+            <div class="col-md-3">
+                <label class="form-label">受注日（自）</label>
+                <input type="date" name="date_from" class="form-control" value="<?= h($dateFrom) ?>">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">受注日（至）</label>
+                <input type="date" name="date_to" class="form-control" value="<?= h($dateTo) ?>">
+            </div>
+            <div class="col-md-6 d-flex align-items-end">
+                <button type="submit" class="btn btn-outline-primary me-2">検索</button>
+                <a href="list.php" class="btn btn-outline-secondary">条件クリア</a>
             </div>
         </form>
     </div>
