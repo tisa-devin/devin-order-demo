@@ -26,6 +26,54 @@ function formatDate($date): string {
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
     <style>
+        :root {
+            --theme-main: #0d6efd;
+            --theme-main-dark: #0b5ed7;
+            --theme-nav: var(--theme-main);
+            --theme-outline: var(--theme-main);
+            --theme-chart: var(--theme-main);
+        }
+        html[data-theme="green"] { --theme-main: #198754; --theme-main-dark: #157347; }
+        html[data-theme="orange"] { --theme-main: #fd7e14; --theme-main-dark: #e8690b; }
+        html[data-theme="dark"] {
+            --theme-main: #495057;
+            --theme-main-dark: #5c636a;
+            --theme-nav: #212529;
+            --theme-outline: #adb5bd;
+            --theme-chart: #4dabf7;
+        }
+        html[data-theme="dark"] .card-header { background-color: #2b3035; }
+        html[data-theme="dark"] .btn-outline-primary { --bs-btn-hover-color: #212529; }
+        html[data-theme="dark"] .bg-warning { color: #212529; }
+        .bg-primary { background-color: var(--theme-main) !important; }
+        .navbar.bg-primary { background-color: var(--theme-nav) !important; }
+        .btn-primary {
+            --bs-btn-bg: var(--theme-main);
+            --bs-btn-border-color: var(--theme-main);
+            --bs-btn-hover-bg: var(--theme-main-dark);
+            --bs-btn-hover-border-color: var(--theme-main-dark);
+            --bs-btn-active-bg: var(--theme-main-dark);
+            --bs-btn-active-border-color: var(--theme-main-dark);
+            --bs-btn-disabled-bg: var(--theme-main);
+            --bs-btn-disabled-border-color: var(--theme-main);
+        }
+        .btn-outline-primary {
+            --bs-btn-color: var(--theme-outline);
+            --bs-btn-border-color: var(--theme-outline);
+            --bs-btn-hover-bg: var(--theme-outline);
+            --bs-btn-hover-border-color: var(--theme-outline);
+            --bs-btn-active-bg: var(--theme-outline);
+            --bs-btn-active-border-color: var(--theme-outline);
+            --bs-btn-disabled-color: var(--theme-outline);
+            --bs-btn-disabled-border-color: var(--theme-outline);
+        }
+        .theme-select {
+            background-color: rgba(255, 255, 255, 0.15);
+            border-color: rgba(255, 255, 255, 0.4);
+            color: #fff;
+            width: auto;
+        }
+        .theme-select option { color: #212529; }
         .navbar-brand { font-weight: bold; }
         .table th { white-space: nowrap; }
         .btn-action { padding: 0.25rem 0.5rem; font-size: 0.875rem; }
@@ -35,6 +83,13 @@ function formatDate($date): string {
             .container { max-width: 100% !important; }
         }
     </style>
+    <script>
+        (function () {
+            var theme = localStorage.getItem('themeColor') || 'blue';
+            document.documentElement.setAttribute('data-theme', theme);
+            document.documentElement.setAttribute('data-bs-theme', theme === 'dark' ? 'dark' : 'light');
+        })();
+    </script>
 </head>
 <body>
 <nav class="navbar navbar-expand-lg navbar-dark bg-primary mb-4 no-print">
@@ -69,7 +124,27 @@ function formatDate($date): string {
                     <a class="nav-link" href="<?= BASE_PATH ?>/pages/sales/list.php">売上管理</a>
                 </li>
             </ul>
+            <div class="ms-auto">
+                <select id="themeSelect" class="form-select form-select-sm theme-select" aria-label="テーマカラー">
+                    <option value="blue">ブルー</option>
+                    <option value="green">グリーン</option>
+                    <option value="orange">オレンジ</option>
+                    <option value="dark">ダーク</option>
+                </select>
+            </div>
         </div>
     </div>
 </nav>
+<script>
+    (function () {
+        var select = document.getElementById('themeSelect');
+        select.value = document.documentElement.getAttribute('data-theme') || 'blue';
+        select.addEventListener('change', function () {
+            document.documentElement.setAttribute('data-theme', select.value);
+            document.documentElement.setAttribute('data-bs-theme', select.value === 'dark' ? 'dark' : 'light');
+            localStorage.setItem('themeColor', select.value);
+            window.dispatchEvent(new CustomEvent('themechange', { detail: { theme: select.value } }));
+        });
+    })();
+</script>
 <div class="container">

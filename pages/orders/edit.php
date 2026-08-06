@@ -200,6 +200,22 @@ $purchaseStatusLabels = [
     </div>
     
     <div class="card mb-4">
+        <div class="card-header"><i class="bi bi-image"></i> 注文書画像から明細を取り込み</div>
+        <div class="card-body">
+            <div class="row g-2 align-items-center">
+                <div class="col-md-6">
+                    <input type="file" class="form-control" id="orderImage" accept="image/*">
+                </div>
+                <div class="col-md-6">
+                    <button type="button" class="btn btn-outline-primary" id="extractItemsBtn"><i class="bi bi-magic"></i> 画像から明細を抽出</button>
+                    <span class="text-muted small ms-2">抽出結果は明細行に追加されます。内容を確認してから保存してください。</span>
+                </div>
+            </div>
+            <div id="extractStatus" class="mt-3"></div>
+        </div>
+    </div>
+
+    <div class="card mb-4">
         <div class="card-header d-flex justify-content-between align-items-center">
             <span>明細</span>
             <button type="button" class="btn btn-sm btn-success" onclick="addRow()"><i class="bi bi-plus"></i> 行追加</button>
@@ -290,15 +306,26 @@ $purchaseStatusLabels = [
 <script>
 let rowIndex = <?= max(count($details), 1) ?>;
 
-function addRow() {
+function escapeHtml(value) {
+    return String(value).replace(/[&<>"']/g, c => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    })[c]);
+}
+
+function addRow(item) {
+    const values = item || {};
+    const itemName = escapeHtml(values.item_name || '');
+    const quantity = escapeHtml(values.quantity || 1);
+    const unit = escapeHtml(values.unit || '式');
+    const unitPrice = escapeHtml(values.unit_price || 0);
     const tbody = document.getElementById('detailsBody');
     const tr = document.createElement('tr');
     tr.className = 'detail-row';
     tr.innerHTML = `
-        <td><input type="text" name="items[${rowIndex}][item_name]" class="form-control form-control-sm"></td>
-        <td><input type="number" name="items[${rowIndex}][quantity]" class="form-control form-control-sm qty" value="1" min="1"></td>
-        <td><input type="text" name="items[${rowIndex}][unit]" class="form-control form-control-sm" value="式"></td>
-        <td><input type="number" name="items[${rowIndex}][unit_price]" class="form-control form-control-sm price" value="0"></td>
+        <td><input type="text" name="items[${rowIndex}][item_name]" class="form-control form-control-sm" value="${itemName}"></td>
+        <td><input type="number" name="items[${rowIndex}][quantity]" class="form-control form-control-sm qty" value="${quantity}" min="1"></td>
+        <td><input type="text" name="items[${rowIndex}][unit]" class="form-control form-control-sm" value="${unit}"></td>
+        <td><input type="number" name="items[${rowIndex}][unit_price]" class="form-control form-control-sm price" value="${unitPrice}"></td>
         <td><input type="text" class="form-control form-control-sm amount" value="0" readonly></td>
         <td><select name="items[${rowIndex}][tax_rate]" class="form-select form-select-sm tax"><option value="10">10%</option><option value="8">8%</option></select></td>
         <td><span class="badge bg-secondary">未発注</span></td>
@@ -308,7 +335,53 @@ function addRow() {
     tbody.appendChild(tr);
     rowIndex++;
     attachEvents(tr);
+    calculateTotals();
+    return tr;
 }
+
+function isEmptyRow(row) {
+    return !row.querySelector('input[name$="[item_name]"]').value.trim();
+}
+
+async function extractItemsFromImage() {
+    const input = document.getElementById('orderImage');
+    const status = document.getElementById('extractStatus');
+    const button = document.getElementById('extractItemsBtn');
+
+    if (!input.files.length) {
+        status.innerHTML = '<div class="alert alert-warning mb-0">画像ファイルを選択してください。</div>';
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('image', input.files[0]);
+
+    button.disabled = true;
+    status.innerHTML = '<div class="alert alert-info mb-0"><span class="spinner-border spinner-border-sm me-2"></span>画像を解析しています…</div>';
+
+    try {
+        const res = await fetch('extract_items.php', { method: 'POST', body: formData });
+        const data = await res.json();
+        if (!res.ok) {
+            throw new Error(data.error || '抽出に失敗しました');
+        }
+        if (!data.items.length) {
+            status.innerHTML = '<div class="alert alert-warning mb-0">明細を読み取れませんでした。画像を確認してください。</div>';
+            return;
+        }
+        document.querySelectorAll('.detail-row').forEach(row => {
+            if (isEmptyRow(row)) row.remove();
+        });
+        data.items.forEach(addRow);
+        status.innerHTML = `<div class="alert alert-success mb-0">${data.items.length}件の明細を取り込みました。内容を確認して保存してください。</div>`;
+    } catch (e) {
+        status.innerHTML = `<div class="alert alert-danger mb-0">${escapeHtml(e.message)}</div>`;
+    } finally {
+        button.disabled = false;
+    }
+}
+
+document.getElementById('extractItemsBtn').addEventListener('click', extractItemsFromImage);
 
 function removeRow(btn) {
     btn.closest('tr').remove();

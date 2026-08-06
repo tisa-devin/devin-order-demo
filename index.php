@@ -32,6 +32,44 @@ $stmt = $pdo->query("
     LIMIT 10
 ");
 $pendingPurchases = $stmt->fetchAll();
+
+$monthlyTrend = [];
+for ($i = 5; $i >= 0; $i--) {
+    $month = date('Y-m', strtotime("-{$i} month", strtotime(date('Y-m-01'))));
+    $monthlyTrend[$month] = 0;
+}
+$trendFrom = array_key_first($monthlyTrend) . '-01';
+$stmt = $pdo->prepare("
+    SELECT strftime('%Y-%m', sales_date) as month, COALESCE(SUM(total_amount), 0) as total
+    FROM sales
+    WHERE sales_date >= ?
+    GROUP BY month
+");
+$stmt->execute([$trendFrom]);
+foreach ($stmt->fetchAll() as $row) {
+    if (array_key_exists($row['month'], $monthlyTrend)) {
+        $monthlyTrend[$row['month']] = (int)$row['total'];
+    }
+}
+$trendLabels = array_map(fn($month) => date('Y/m', strtotime($month . '-01')), array_keys($monthlyTrend));
+$trendValues = array_values($monthlyTrend);
+
+$orderStatusLabels = [
+    'ordered' => ['label' => '受注', 'color' => '#0d6efd'],
+    'in_progress' => ['label' => '進行中', 'color' => '#ffc107'],
+    'completed' => ['label' => '完了', 'color' => '#198754'],
+    'cancelled' => ['label' => 'キャンセル', 'color' => '#dc3545']
+];
+$orderStatusCounts = array_fill_keys(array_keys($orderStatusLabels), 0);
+$stmt = $pdo->query("SELECT status, COUNT(*) as count FROM orders GROUP BY status");
+foreach ($stmt->fetchAll() as $row) {
+    if (array_key_exists($row['status'], $orderStatusCounts)) {
+        $orderStatusCounts[$row['status']] = (int)$row['count'];
+    }
+}
+$statusChartLabels = array_map(fn($status) => $orderStatusLabels[$status]['label'], array_keys($orderStatusCounts));
+$statusChartColors = array_map(fn($status) => $orderStatusLabels[$status]['color'], array_keys($orderStatusCounts));
+$statusChartValues = array_values($orderStatusCounts);
 ?>
 
 <h2 class="mb-4"><i class="bi bi-speedometer2"></i> ダッシュボード</h2>
@@ -59,6 +97,29 @@ $pendingPurchases = $stmt->fetchAll();
             <div class="card-body">
                 <h5 class="card-title">発注待ち明細</h5>
                 <h2 class="mb-0"><?= count($pendingPurchases) ?>件</h2>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card mb-4">
+            <div class="card-header">
+                <i class="bi bi-bar-chart"></i> 月次売上推移（直近6ヶ月）
+            </div>
+            <div class="card-body">
+                <canvas id="monthlySalesChart" height="160"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card mb-4">
+            <div class="card-header">
+                <i class="bi bi-pie-chart"></i> 受注ステータス別件数
+            </div>
+            <div class="card-body">
+                <canvas id="orderStatusChart" height="320"></canvas>
             </div>
         </div>
     </div>
@@ -132,5 +193,75 @@ $pendingPurchases = $stmt->fetchAll();
         </div>
     </div>
 </div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+    (function () {
+        var formatter = new Intl.NumberFormat('ja-JP');
+        function chartColor() {
+            return getComputedStyle(document.documentElement).getPropertyValue('--theme-chart').trim();
+        }
+        var chart = new Chart(document.getElementById('monthlySalesChart'), {
+            type: 'bar',
+            data: {
+                labels: <?= json_encode($trendLabels, JSON_UNESCAPED_UNICODE) ?>,
+                datasets: [{
+                    label: '売上金額',
+                    data: <?= json_encode($trendValues) ?>,
+                    backgroundColor: chartColor()
+                }]
+            },
+            options: {
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function (context) {
+                                return '\u00a5' + formatter.format(context.parsed.y);
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function (value) {
+                                return '\u00a5' + formatter.format(value);
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        window.addEventListener('themechange', function () {
+            chart.data.datasets[0].backgroundColor = chartColor();
+            chart.update();
+        });
+
+        new Chart(document.getElementById('orderStatusChart'), {
+            type: 'pie',
+            data: {
+                labels: <?= json_encode($statusChartLabels, JSON_UNESCAPED_UNICODE) ?>,
+                datasets: [{
+                    data: <?= json_encode($statusChartValues) ?>,
+                    backgroundColor: <?= json_encode($statusChartColors) ?>
+                }]
+            },
+            options: {
+                plugins: {
+                    legend: { position: 'bottom' },
+                    tooltip: {
+                        callbacks: {
+                            label: function (context) {
+                                return context.label + ': ' + formatter.format(context.parsed) + '件';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    })();
+</script>
 
 <?php require_once __DIR__ . '/includes/footer.php'; ?>
