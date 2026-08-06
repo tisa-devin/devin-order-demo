@@ -27,7 +27,7 @@ $countStmt = $pdo->prepare("SELECT COUNT(*)" . $from);
 $countStmt->execute($params);
 $totalCount = (int)$countStmt->fetchColumn();
 
-$perPage = 20;
+$perPage = 3;
 $totalPages = max(1, (int)ceil($totalCount / $perPage));
 $page = max(1, (int)($_GET['page'] ?? 1));
 if ($page > $totalPages) $page = $totalPages;
