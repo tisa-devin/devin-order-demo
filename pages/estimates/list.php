@@ -1,26 +1,21 @@
 <?php
 $pageTitle = '見積一覧';
 require_once __DIR__ . '/../../includes/header.php';
+require_once __DIR__ . '/../../includes/list_filter.php';
 
 $pdo = getDB();
 
-$search = $_GET['search'] ?? '';
-$status = $_GET['status'] ?? '';
+$filters = getListFilters();
+
+[$filterSql, $params] = buildListFilterSql(
+    $filters,
+    ['e.estimate_no', 'e.subject', 'c.name'],
+    'e.estimate_date',
+    'e.status'
+);
 
 $sql = "SELECT e.*, c.name as customer_name FROM estimates e JOIN customers c ON e.customer_id = c.id WHERE 1=1";
-$params = [];
-
-if ($search) {
-    $sql .= " AND (e.estimate_no LIKE ? OR e.subject LIKE ? OR c.name LIKE ?)";
-    $params[] = "%$search%";
-    $params[] = "%$search%";
-    $params[] = "%$search%";
-}
-if ($status) {
-    $sql .= " AND e.status = ?";
-    $params[] = $status;
-}
-
+$sql .= $filterSql;
 $sql .= " ORDER BY e.estimate_date DESC, e.id DESC";
 
 $stmt = $pdo->prepare($sql);
@@ -40,27 +35,7 @@ $statusLabels = [
     <a href="edit.php" class="btn btn-primary"><i class="bi bi-plus"></i> 新規見積</a>
 </div>
 
-<div class="card mb-4">
-    <div class="card-body">
-        <form method="get" class="row g-3">
-            <div class="col-md-4">
-                <input type="text" name="search" class="form-control" placeholder="見積番号・件名・顧客名で検索" value="<?= h($search) ?>">
-            </div>
-            <div class="col-md-3">
-                <select name="status" class="form-select">
-                    <option value="">全てのステータス</option>
-                    <?php foreach ($statusLabels as $key => $val): ?>
-                    <option value="<?= $key ?>" <?= $status === $key ? 'selected' : '' ?>><?= $val['label'] ?></option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
-            <div class="col-md-2">
-                <button type="submit" class="btn btn-outline-primary">検索</button>
-                <a href="list.php" class="btn btn-outline-secondary">クリア</a>
-            </div>
-        </form>
-    </div>
-</div>
+<?php renderListFilterForm($filters, $statusLabels, '見積番号・件名・顧客名で検索', '見積日'); ?>
 
 <div class="card">
     <div class="card-body">
