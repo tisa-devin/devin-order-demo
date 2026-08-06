@@ -76,6 +76,19 @@ $customers = $stmt->fetchAll();
         <?= $editCustomer ? '顧客編集' : '顧客登録' ?>
     </div>
     <div class="card-body">
+        <div class="border rounded p-3 mb-3 bg-light">
+            <label class="form-label"><i class="bi bi-camera"></i> 名刺から読み取り</label>
+            <div class="row g-2 align-items-center">
+                <div class="col-md-6">
+                    <input type="file" accept="image/*" capture="environment" id="cardImage" class="form-control">
+                </div>
+                <div class="col-md-3">
+                    <button type="button" id="readCardBtn" class="btn btn-outline-primary">読み取り</button>
+                </div>
+            </div>
+            <div class="form-text">会社名・郵便番号・住所・電話番号を自動入力します。顧客コードは入力されません。内容を確認・修正してから登録してください。</div>
+            <div id="cardResult" class="mt-2"></div>
+        </div>
         <form method="post">
             <input type="hidden" name="action" value="<?= $editCustomer ? 'update' : 'create' ?>">
             <?php if ($editCustomer): ?>
@@ -116,6 +129,71 @@ $customers = $stmt->fetchAll();
         </form>
     </div>
 </div>
+
+<script>
+(function () {
+    const fileInput = document.getElementById('cardImage');
+    const button = document.getElementById('readCardBtn');
+    const result = document.getElementById('cardResult');
+    const isEdit = <?= $editCustomer ? 'true' : 'false' ?>;
+
+    function showMessage(type, text) {
+        result.innerHTML = '<div class="alert alert-' + type + ' mb-0">' + text + '</div>';
+    }
+
+    button.addEventListener('click', async function () {
+        const file = fileInput.files[0];
+        if (!file) {
+            showMessage('warning', '名刺の画像を選択してください。');
+            return;
+        }
+        if (isEdit && !confirm('読み取り結果で顧客名・郵便番号・住所・電話番号を上書きします。よろしいですか？')) {
+            return;
+        }
+
+        button.disabled = true;
+        const originalLabel = button.textContent;
+        button.textContent = '読み取り中...';
+        result.innerHTML = '';
+
+        try {
+            const body = new FormData();
+            body.append('card_image', file);
+            // 認証情報付きURL（user:pass@host）で開かれている場合、fetchが拒否されるため除去する
+            const endpoint = new URL('read_business_card.php', location.href);
+            endpoint.username = '';
+            endpoint.password = '';
+            const response = await fetch(endpoint.toString(), { method: 'POST', body: body });
+            const json = await response.json();
+
+            if (!json.ok) {
+                showMessage('danger', json.error || '読み取りに失敗しました。');
+                return;
+            }
+
+            const filled = [];
+            for (const [field, value] of Object.entries(json.data)) {
+                if (!value) continue;
+                const input = document.querySelector('form [name="' + field + '"]');
+                if (input) {
+                    input.value = value;
+                    filled.push(field);
+                }
+            }
+            if (filled.length === 0) {
+                showMessage('warning', '項目を読み取れませんでした。画像を変えて再度お試しください。');
+            } else {
+                showMessage('info', '読み取り結果を入力しました。内容を確認・修正してから登録ボタンを押してください。');
+            }
+        } catch (e) {
+            showMessage('danger', '読み取りに失敗しました: ' + e.message);
+        } finally {
+            button.disabled = false;
+            button.textContent = originalLabel;
+        }
+    });
+})();
+</script>
 
 <div class="card">
     <div class="card-header">顧客一覧</div>

@@ -1,0 +1,7 @@
+<?php
+// このファイルを api_keys.local.php にコピーして実際のキーを記入する（api_keys.local.php は Git 管理外）。
+// 環境変数（例: OPENAI_API_KEY）が設定されている場合は、そちらが優先される。
+
+return [
+    'OPENAI_API_KEY' => 'sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
+];
