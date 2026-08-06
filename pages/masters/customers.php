@@ -214,7 +214,24 @@ $customers = $stmt->fetchAll();
         <?= $editCustomer ? '顧客編集' : '顧客登録' ?>
     </div>
     <div class="card-body">
-        <form method="post">
+        <div class="border rounded p-3 mb-3 bg-body-tertiary">
+            <label class="form-label mb-1"><i class="bi bi-camera"></i> 名刺から読み取り</label>
+            <div class="row g-2 align-items-center">
+                <div class="col-md-6">
+                    <input type="file" id="cardImage" accept="image/*" capture="environment" class="form-control">
+                </div>
+                <div class="col-md-6">
+                    <button type="button" id="cardScanButton" class="btn btn-outline-primary">
+                        <span id="cardScanSpinner" class="spinner-border spinner-border-sm d-none" role="status"></span>
+                        読み取って自動入力
+                    </button>
+                    <span class="text-muted small ms-2">顧客コードは自動入力されません。内容を確認・修正して登録してください。</span>
+                </div>
+            </div>
+            <div id="cardScanMessage" class="mt-2 mb-0"></div>
+        </div>
+
+        <form method="post" id="customerForm">
             <input type="hidden" name="action" value="<?= $editCustomer ? 'update' : 'create' ?>">
             <?php if ($editCustomer): ?>
             <input type="hidden" name="id" value="<?= $editCustomer['id'] ?>">
@@ -380,5 +397,62 @@ $customers = $stmt->fetchAll();
         </table>
     </div>
 </div>
+
+<script>
+(function () {
+    var input = document.getElementById('cardImage');
+    var button = document.getElementById('cardScanButton');
+    var spinner = document.getElementById('cardScanSpinner');
+    var messageBox = document.getElementById('cardScanMessage');
+    var form = document.getElementById('customerForm');
+
+    function showMessage(text, type) {
+        messageBox.innerHTML = '<div class="alert alert-' + type + ' py-2 mb-0">' + text + '</div>';
+    }
+
+    button.addEventListener('click', function () {
+        if (!input.files || input.files.length === 0) {
+            showMessage('名刺画像を選択または撮影してください。', 'warning');
+            return;
+        }
+
+        var body = new FormData();
+        body.append('image', input.files[0]);
+
+        button.disabled = true;
+        spinner.classList.remove('d-none');
+        showMessage('読み取り中です...', 'info');
+
+        fetch('business_card_ocr.php', { method: 'POST', body: body })
+            .then(function (res) { return res.json().then(function (json) { return { ok: res.ok, json: json }; }); })
+            .then(function (result) {
+                if (!result.ok) {
+                    showMessage(result.json.error || '読み取りに失敗しました。', 'danger');
+                    return;
+                }
+                var filled = [];
+                ['name', 'postal_code', 'address', 'tel'].forEach(function (field) {
+                    var value = result.json[field] || '';
+                    if (value !== '') {
+                        form.elements[field].value = value;
+                        filled.push(field);
+                    }
+                });
+                if (filled.length === 0) {
+                    showMessage('項目を読み取れませんでした。画像を変えて再度お試しください。', 'warning');
+                } else {
+                    showMessage('読み取りました（' + filled.length + '項目）。内容を確認し、顧客コードを入力して登録してください。', 'success');
+                }
+            })
+            .catch(function (e) {
+                showMessage('通信エラー: ' + e.message, 'danger');
+            })
+            .finally(function () {
+                button.disabled = false;
+                spinner.classList.add('d-none');
+            });
+    });
+})();
+</script>
 
 <?php require_once __DIR__ . '/../../includes/footer.php'; ?>

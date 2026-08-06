@@ -1,0 +1,9 @@
+<?php
+/**
+ * このファイルを config/api_keys.local.php にコピーして実キーを記入する。
+ * api_keys.local.php は .gitignore 済み（コミットしないこと）。
+ */
+return [
+    'openai_api_key' => 'sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
+    'openai_vision_model' => 'gpt-4o-mini',
+];
