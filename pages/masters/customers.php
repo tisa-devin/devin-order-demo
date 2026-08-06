@@ -159,7 +159,11 @@ $customers = $stmt->fetchAll();
         try {
             const body = new FormData();
             body.append('card_image', file);
-            const response = await fetch('read_business_card.php', { method: 'POST', body: body });
+            // 認証情報付きURL（user:pass@host）で開かれている場合、fetchが拒否されるため除去する
+            const endpoint = new URL('read_business_card.php', location.href);
+            endpoint.username = '';
+            endpoint.password = '';
+            const response = await fetch(endpoint.toString(), { method: 'POST', body: body });
             const json = await response.json();
 
             if (!json.ok) {
