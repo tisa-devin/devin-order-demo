@@ -18,14 +18,48 @@ function formatDate($date): string {
 }
 ?>
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="ja" data-theme="blue">
 <head>
+    <script>
+        (function () {
+            var theme = localStorage.getItem('themeColor');
+            if (theme) document.documentElement.setAttribute('data-theme', theme);
+        })();
+    </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= h($pageTitle ?? '受発注・売上管理システム') ?></title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
     <style>
+        html[data-theme="blue"] { --theme-color: #0d6efd; --theme-color-hover: #0b5ed7; }
+        html[data-theme="green"] { --theme-color: #198754; --theme-color-hover: #157347; }
+        html[data-theme="orange"] { --theme-color: #fd7e14; --theme-color-hover: #e96b02; }
+        html[data-theme="dark"] { --theme-color: #212529; --theme-color-hover: #1a1e21; }
+        html[data-theme="pink"] { --theme-color: #d63384; --theme-color-hover: #b32b6f; }
+
+        .navbar.bg-primary { background-color: var(--theme-color) !important; }
+        .btn-primary {
+            --bs-btn-bg: var(--theme-color);
+            --bs-btn-border-color: var(--theme-color);
+            --bs-btn-hover-bg: var(--theme-color-hover);
+            --bs-btn-hover-border-color: var(--theme-color-hover);
+            --bs-btn-active-bg: var(--theme-color-hover);
+            --bs-btn-active-border-color: var(--theme-color-hover);
+            --bs-btn-disabled-bg: var(--theme-color);
+            --bs-btn-disabled-border-color: var(--theme-color);
+        }
+        .btn-outline-primary {
+            --bs-btn-color: var(--theme-color);
+            --bs-btn-border-color: var(--theme-color);
+            --bs-btn-hover-bg: var(--theme-color);
+            --bs-btn-hover-border-color: var(--theme-color);
+            --bs-btn-active-bg: var(--theme-color);
+            --bs-btn-active-border-color: var(--theme-color);
+            --bs-btn-disabled-color: var(--theme-color);
+            --bs-btn-disabled-border-color: var(--theme-color);
+        }
+        .theme-selector { width: auto; }
         .navbar-brand { font-weight: bold; }
         .table th { white-space: nowrap; }
         .btn-action { padding: 0.25rem 0.5rem; font-size: 0.875rem; }
@@ -70,6 +104,23 @@ function formatDate($date): string {
                 </li>
             </ul>
         </div>
+        <select class="form-select form-select-sm theme-selector" id="themeSelector" aria-label="テーマカラー">
+            <option value="blue">ブルー</option>
+            <option value="green">グリーン</option>
+            <option value="orange">オレンジ</option>
+            <option value="dark">ダーク</option>
+            <option value="pink">ピンク</option>
+        </select>
     </div>
 </nav>
+<script>
+    (function () {
+        var selector = document.getElementById('themeSelector');
+        selector.value = document.documentElement.getAttribute('data-theme') || 'blue';
+        selector.addEventListener('change', function () {
+            document.documentElement.setAttribute('data-theme', this.value);
+            localStorage.setItem('themeColor', this.value);
+        });
+    })();
+</script>
 <div class="container">
