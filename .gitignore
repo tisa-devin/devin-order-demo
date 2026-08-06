@@ -2,6 +2,11 @@
 data/*.sqlite
 data/*.db
 
+# 環境変数（APIキーなど）
+.env
+config/.env
+!config/.env.example
+
 # IDE
 .idea/
 .vscode/
