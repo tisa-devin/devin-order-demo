@@ -202,7 +202,13 @@ $customers = $stmt->fetchAll();
         spinner.classList.remove('d-none');
         showAlert('読み取り中です...', 'info');
 
-        fetch('scan_business_card.php', { method: 'POST', body: data })
+        // 認証情報付きURL（https://user:pass@...）で開かれている場合、
+        // 相対URLのままでは fetch がエラーになるため認証情報を除いた絶対URLにする
+        var endpoint = new URL('scan_business_card.php', location.href);
+        endpoint.username = '';
+        endpoint.password = '';
+
+        fetch(endpoint.toString(), { method: 'POST', body: data })
             .then(function (res) {
                 return res.json().then(function (json) { return { ok: res.ok, json: json }; });
             })
