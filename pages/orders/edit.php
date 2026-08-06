@@ -205,6 +205,15 @@ $purchaseStatusLabels = [
             <button type="button" class="btn btn-sm btn-success" onclick="addRow()"><i class="bi bi-plus"></i> 行追加</button>
         </div>
         <div class="card-body">
+            <div class="border rounded p-3 mb-3">
+                <label for="orderImage" class="form-label mb-1"><i class="bi bi-image"></i> 注文書画像から明細を取り込む</label>
+                <div class="d-flex flex-wrap align-items-center gap-2">
+                    <input type="file" id="orderImage" class="form-control" accept="image/*" style="max-width:360px">
+                    <button type="button" id="extractItemsBtn" class="btn btn-outline-primary">画像から明細を抽出</button>
+                    <span id="extractStatus" class="text-muted small"></span>
+                </div>
+                <div class="form-text">抽出結果は明細行に追加されるだけです。内容を確認してから「保存」してください。</div>
+            </div>
             <table class="table" id="detailsTable">
                 <thead>
                     <tr>
@@ -341,6 +350,57 @@ function attachEvents(row) {
 
 document.querySelectorAll('.detail-row').forEach(attachEvents);
 calculateTotals();
+
+(function () {
+    const fileInput = document.getElementById('orderImage');
+    const button = document.getElementById('extractItemsBtn');
+    const status = document.getElementById('extractStatus');
+
+    /** 抽出した明細を新しい行として展開する */
+    function appendExtractedItems(items) {
+        items.forEach(item => {
+            addRow();
+            const row = document.querySelector('#detailsBody tr.detail-row:last-child');
+            row.querySelector('input[name$="[item_name]"]').value = item.item_name;
+            row.querySelector('.qty').value = item.quantity;
+            row.querySelector('input[name$="[unit]"]').value = item.unit;
+            row.querySelector('.price').value = item.unit_price;
+        });
+        calculateTotals();
+    }
+
+    button.addEventListener('click', async function () {
+        const file = fileInput.files[0];
+        if (!file) {
+            status.textContent = '画像を選んでください。';
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('image', file);
+
+        button.disabled = true;
+        status.textContent = '抽出中...';
+        try {
+            const res = await fetch('extract_items.php', { method: 'POST', body: formData });
+            const data = await res.json();
+            if (!res.ok) {
+                status.textContent = 'エラー: ' + (data.error || res.status);
+                return;
+            }
+            if (!data.items || data.items.length === 0) {
+                status.textContent = '明細を検出できませんでした。';
+                return;
+            }
+            appendExtractedItems(data.items);
+            status.textContent = data.items.length + '件を明細に追加しました。内容を確認して保存してください。';
+        } catch (e) {
+            status.textContent = '通信エラー: ' + e.message;
+        } finally {
+            button.disabled = false;
+        }
+    });
+})();
 </script>
 
 <?php require_once __DIR__ . '/../../includes/footer.php'; ?>
