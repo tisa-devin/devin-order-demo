@@ -4,6 +4,8 @@ require_once __DIR__ . '/../../config/init_db.php';
 
 $pdo = getDB();
 
+const COLUMNS_COOKIE = 'sales_export_columns';
+
 $dateFrom = $_REQUEST['date_from'] ?? date('Y-m-01');
 $dateTo = $_REQUEST['date_to'] ?? date('Y-m-t');
 $unexportedOnly = !empty($_REQUEST['unexported_only']);
@@ -40,34 +42,46 @@ function fetchAccount(PDO $pdo, string $nameLike, string $fallbackCode, string $
     ];
 }
 
-$csvHeader = [
-    '売上日', '売上番号', '受注番号', '請求書番号',
-    '顧客コード', '顧客名', '顧客勘定科目コード',
-    '借方科目コード', '貸方科目コード', '税区分コード',
-    '税抜金額', '消費税額', '税込金額', '摘要',
-];
-
-function buildCsvRow(array $row, array $receivable, array $salesAccount): array {
-    return [
-        date('Y/m/d', strtotime($row['sales_date'])),
-        $row['sales_no'],
-        $row['order_no'],
-        $row['invoice_no'],
-        $row['customer_code'],
-        $row['customer_name'],
-        $row['customer_accounting_code'],
-        $receivable['code'],
-        $salesAccount['code'],
-        $salesAccount['tax_class_code'],
-        (int)$row['total_amount'] - (int)$row['tax_amount'],
-        (int)$row['tax_amount'],
-        (int)$row['total_amount'],
-        "売上計上 {$row['sales_no']} {$row['customer_name']}",
-    ];
-}
-
 $receivable = fetchAccount($pdo, '%売掛金%', '1310', '0000');
 $salesAccount = fetchAccount($pdo, '%売上高%', '4110', '0060');
+
+$columnDefs = [
+    'sales_date' => ['label' => '売上日', 'numeric' => false, 'value' => fn($r) => date('Y/m/d', strtotime($r['sales_date']))],
+    'sales_no' => ['label' => '売上番号', 'numeric' => false, 'value' => fn($r) => $r['sales_no']],
+    'order_no' => ['label' => '受注番号', 'numeric' => false, 'value' => fn($r) => $r['order_no']],
+    'invoice_no' => ['label' => '請求書番号', 'numeric' => false, 'value' => fn($r) => $r['invoice_no']],
+    'customer_code' => ['label' => '顧客コード', 'numeric' => false, 'value' => fn($r) => $r['customer_code']],
+    'customer_name' => ['label' => '顧客名', 'numeric' => false, 'value' => fn($r) => $r['customer_name']],
+    'customer_accounting_code' => ['label' => '顧客勘定科目コード', 'numeric' => false, 'value' => fn($r) => $r['customer_accounting_code']],
+    'debit_code' => ['label' => '借方科目コード', 'numeric' => false, 'value' => fn($r) => $receivable['code']],
+    'credit_code' => ['label' => '貸方科目コード', 'numeric' => false, 'value' => fn($r) => $salesAccount['code']],
+    'tax_class_code' => ['label' => '税区分コード', 'numeric' => false, 'value' => fn($r) => $salesAccount['tax_class_code']],
+    'amount_excluding_tax' => ['label' => '税抜金額', 'numeric' => true, 'value' => fn($r) => (int)$r['total_amount'] - (int)$r['tax_amount']],
+    'tax_amount' => ['label' => '消費税額', 'numeric' => true, 'value' => fn($r) => (int)$r['tax_amount']],
+    'total_amount' => ['label' => '税込金額', 'numeric' => true, 'value' => fn($r) => (int)$r['total_amount']],
+    'description' => ['label' => '摘要', 'numeric' => false, 'value' => fn($r) => "売上計上 {$r['sales_no']} {$r['customer_name']}"],
+];
+
+if (isset($_REQUEST['columns_submitted'])) {
+    $selectedColumns = array_values(array_intersect(array_keys($columnDefs), (array)($_REQUEST['columns'] ?? [])));
+    if (empty($selectedColumns)) {
+        $selectedColumns = array_keys($columnDefs);
+    }
+    setcookie(COLUMNS_COOKIE, implode(',', $selectedColumns), time() + 60 * 60 * 24 * 365, '/');
+} elseif (!empty($_COOKIE[COLUMNS_COOKIE])) {
+    $selectedColumns = array_values(array_intersect(array_keys($columnDefs), explode(',', $_COOKIE[COLUMNS_COOKIE])));
+} else {
+    $selectedColumns = [];
+}
+if (empty($selectedColumns)) {
+    $selectedColumns = array_keys($columnDefs);
+}
+
+$csvHeader = array_map(fn($key) => $columnDefs[$key]['label'], $selectedColumns);
+
+function buildCsvRow(array $row, array $columnDefs, array $selectedColumns): array {
+    return array_map(fn($key) => $columnDefs[$key]['value']($row), $selectedColumns);
+}
 
 if (($_POST['action'] ?? '') === 'download') {
     $rows = fetchExportRows($pdo, $dateFrom, $dateTo, $unexportedOnly);
@@ -87,7 +101,7 @@ if (($_POST['action'] ?? '') === 'download') {
     fwrite($out, "\xEF\xBB\xBF");
     fputcsv($out, $csvHeader, ',', '"', '');
     foreach ($rows as $row) {
-        fputcsv($out, buildCsvRow($row, $receivable, $salesAccount), ',', '"', '');
+        fputcsv($out, buildCsvRow($row, $columnDefs, $selectedColumns), ',', '"', '');
     }
     fclose($out);
     exit;
@@ -122,8 +136,21 @@ $totalAmount = array_sum(array_column($rows, 'total_amount'));
                     <label class="form-check-label" for="unexportedOnly">未出力のみ</label>
                 </div>
             </div>
-            <div class="col-md-3">
-                <button type="submit" class="btn btn-outline-primary">絞り込み</button>
+            <div class="col-12">
+                <label class="form-label">出力列</label>
+                <div class="d-flex flex-wrap gap-3">
+                    <?php foreach ($columnDefs as $key => $def): ?>
+                    <div class="form-check">
+                        <input type="checkbox" name="columns[]" value="<?= h($key) ?>" id="col_<?= h($key) ?>" class="form-check-input" <?= in_array($key, $selectedColumns, true) ? 'checked' : '' ?>>
+                        <label class="form-check-label" for="col_<?= h($key) ?>"><?= h($def['label']) ?></label>
+                    </div>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+            <div class="col-12">
+                <input type="hidden" name="columns_submitted" value="1">
+                <button type="submit" class="btn btn-outline-primary">絞り込み・列を適用</button>
+                <span class="text-muted small ms-2">選んだ列はブラウザに保存し、次回の初期値になります。</span>
             </div>
         </form>
     </div>
@@ -136,6 +163,10 @@ $totalAmount = array_sum(array_column($rows, 'total_amount'));
             <input type="hidden" name="date_from" value="<?= h($dateFrom) ?>">
             <input type="hidden" name="date_to" value="<?= h($dateTo) ?>">
             <input type="hidden" name="unexported_only" value="<?= $unexportedOnly ? '1' : '' ?>">
+            <?php foreach ($selectedColumns as $key): ?>
+            <input type="hidden" name="columns[]" value="<?= h($key) ?>">
+            <?php endforeach; ?>
+            <input type="hidden" name="columns_submitted" value="1">
             <div class="form-check mb-0">
                 <input type="checkbox" name="mark_exported" value="1" id="markExported" class="form-check-input">
                 <label class="form-check-label" for="markExported">出力済にする</label>
@@ -158,8 +189,8 @@ $totalAmount = array_sum(array_column($rows, 'total_amount'));
                 <tbody>
                     <?php foreach ($rows as $row): ?>
                     <tr>
-                        <?php foreach (buildCsvRow($row, $receivable, $salesAccount) as $i => $value): ?>
-                        <td class="<?= in_array($i, [10, 11, 12], true) ? 'text-end' : '' ?>"><?= h(is_int($value) ? formatNumber($value) : $value) ?></td>
+                        <?php foreach (buildCsvRow($row, $columnDefs, $selectedColumns) as $i => $value): ?>
+                        <td class="<?= $columnDefs[$selectedColumns[$i]]['numeric'] ? 'text-end' : '' ?>"><?= h(is_int($value) ? formatNumber($value) : $value) ?></td>
                         <?php endforeach; ?>
                     </tr>
                     <?php endforeach; ?>
