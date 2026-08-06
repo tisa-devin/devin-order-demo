@@ -423,7 +423,13 @@ $customers = $stmt->fetchAll();
         spinner.classList.remove('d-none');
         showMessage('読み取り中です...', 'info');
 
-        fetch('business_card_ocr.php', { method: 'POST', body: body })
+        // Basic認証付きURL（user:pass@host）で開かれている場合、相対URLのまま fetch すると
+        // 資格情報を含むURLとして解決され Chrome に拒否されるため除去する
+        var endpoint = new URL('business_card_ocr.php', location.href);
+        endpoint.username = '';
+        endpoint.password = '';
+
+        fetch(endpoint.toString(), { method: 'POST', body: body })
             .then(function (res) { return res.json().then(function (json) { return { ok: res.ok, json: json }; }); })
             .then(function (result) {
                 if (!result.ok) {
