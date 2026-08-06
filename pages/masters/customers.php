@@ -76,7 +76,16 @@ $customers = $stmt->fetchAll();
         <?= $editCustomer ? '顧客編集' : '顧客登録' ?>
     </div>
     <div class="card-body">
-        <form method="post">
+        <div class="border rounded p-3 mb-3 bg-body-tertiary">
+            <label class="form-label mb-1"><i class="bi bi-camera"></i> 名刺から読み取り</label>
+            <div class="d-flex flex-wrap align-items-center gap-2">
+                <input type="file" class="form-control" id="cardImage" accept="image/*" capture="environment" style="max-width: 22rem;">
+                <button type="button" class="btn btn-outline-primary" id="cardScanButton">読み取り</button>
+                <span id="cardScanStatus" class="text-muted small"></span>
+            </div>
+            <div class="form-text">撮影またはファイル選択後に「読み取り」を押すと、会社名・郵便番号・住所・電話番号が下のフォームに自動入力されます（顧客コードは対象外）。内容を確認・修正してから登録してください。</div>
+        </div>
+        <form method="post" id="customerForm">
             <input type="hidden" name="action" value="<?= $editCustomer ? 'update' : 'create' ?>">
             <?php if ($editCustomer): ?>
             <input type="hidden" name="id" value="<?= $editCustomer['id'] ?>">
@@ -158,5 +167,61 @@ $customers = $stmt->fetchAll();
         </table>
     </div>
 </div>
+
+<script>
+    (function () {
+        var input = document.getElementById('cardImage');
+        var button = document.getElementById('cardScanButton');
+        var status = document.getElementById('cardScanStatus');
+        var form = document.getElementById('customerForm');
+
+        function setStatus(text, isError) {
+            status.textContent = text;
+            status.className = 'small ' + (isError ? 'text-danger' : 'text-muted');
+        }
+
+        button.addEventListener('click', function () {
+            if (!input.files || input.files.length === 0) {
+                setStatus('画像を選択してください', true);
+                return;
+            }
+
+            var data = new FormData();
+            data.append('image', input.files[0]);
+
+            button.disabled = true;
+            setStatus('読み取り中...', false);
+
+            fetch('business_card_ocr.php', { method: 'POST', body: data })
+                .then(function (res) {
+                    return res.json().then(function (json) {
+                        if (!res.ok) throw new Error(json.error || '読み取りに失敗しました');
+                        return json;
+                    });
+                })
+                .then(function (result) {
+                    var filled = [];
+                    ['name', 'postal_code', 'address', 'tel'].forEach(function (field) {
+                        if (!result[field]) return;
+                        var el = form.querySelector('[name="' + field + '"]');
+                        if (!el) return;
+                        el.value = result[field];
+                        filled.push(field);
+                    });
+                    if (filled.length === 0) {
+                        setStatus('項目を読み取れませんでした。手入力してください', true);
+                    } else {
+                        setStatus('読み取り完了（' + filled.length + '項目）。内容を確認して登録してください', false);
+                    }
+                })
+                .catch(function (err) {
+                    setStatus(err.message, true);
+                })
+                .finally(function () {
+                    button.disabled = false;
+                });
+        });
+    })();
+</script>
 
 <?php require_once __DIR__ . '/../../includes/footer.php'; ?>
