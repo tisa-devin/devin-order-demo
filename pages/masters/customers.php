@@ -175,6 +175,10 @@ $customers = $stmt->fetchAll();
         var status = document.getElementById('cardScanStatus');
         var form = document.getElementById('customerForm');
 
+        // location.origin から組み立てる。location.href にBasic認証の資格情報が含まれる場合、
+        // 相対URLのままだと fetch が資格情報付きURLとして拒否する。
+        var endpoint = location.origin + location.pathname.replace(/[^/]*$/, '') + 'business_card_ocr.php';
+
         function setStatus(text, isError) {
             status.textContent = text;
             status.className = 'small ' + (isError ? 'text-danger' : 'text-muted');
@@ -192,10 +196,14 @@ $customers = $stmt->fetchAll();
             button.disabled = true;
             setStatus('読み取り中...', false);
 
-            fetch('business_card_ocr.php', { method: 'POST', body: data })
+            fetch(endpoint, { method: 'POST', body: data, credentials: 'same-origin' })
                 .then(function (res) {
-                    return res.json().then(function (json) {
-                        if (!res.ok) throw new Error(json.error || '読み取りに失敗しました');
+                    return res.text().then(function (text) {
+                        var json = null;
+                        try { json = JSON.parse(text); } catch (e) {}
+                        if (!res.ok || !json) {
+                            throw new Error((json && json.error) || ('読み取りに失敗しました（HTTP ' + res.status + '）'));
+                        }
                         return json;
                     });
                 })
