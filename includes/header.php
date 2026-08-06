@@ -26,7 +26,9 @@ function formatDate($date): string {
         (function () {
             var saved = null;
             try { saved = localStorage.getItem('themeColor'); } catch (e) {}
-            document.documentElement.setAttribute('data-theme', saved || 'blue');
+            var theme = saved || 'blue';
+            document.documentElement.setAttribute('data-theme', theme);
+            document.documentElement.setAttribute('data-bs-theme', theme === 'dark' ? 'dark' : 'light');
         })();
     </script>
     <title><?= h($pageTitle ?? '受発注・売上管理システム') ?></title>
@@ -46,8 +48,13 @@ function formatDate($date): string {
             --theme-color-hover: #e26a02;
         }
         [data-theme="dark"] {
-            --theme-color: #212529;
-            --theme-color-hover: #16191c;
+            --theme-color: #2b3035;
+            --theme-color-hover: #212529;
+        }
+        [data-bs-theme="dark"] .bg-warning,
+        [data-bs-theme="dark"] .bg-info,
+        [data-bs-theme="dark"] .bg-light {
+            color: #212529 !important;
         }
         .bg-primary { background-color: var(--theme-color) !important; }
         .btn-primary {
@@ -132,6 +139,7 @@ function formatDate($date): string {
         select.value = document.documentElement.getAttribute('data-theme') || 'blue';
         select.addEventListener('change', function () {
             document.documentElement.setAttribute('data-theme', select.value);
+            document.documentElement.setAttribute('data-bs-theme', select.value === 'dark' ? 'dark' : 'light');
             try { localStorage.setItem('themeColor', select.value); } catch (e) {}
         });
     })();
