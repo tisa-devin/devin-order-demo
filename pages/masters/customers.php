@@ -73,6 +73,11 @@ function parseCustomerCsv(string $content, PDO $pdo): array {
             $data[$key] = trim((string)($values[$i] ?? ''));
         }
 
+        $requiredCount = max(array_keys($indexToColumn)) + 1;
+        if (count($values) < $requiredCount) {
+            $errors[] = ['line' => $lineNo, 'reason' => "列数が不足しています（見出し{$requiredCount}列に対して" . count($values) . '列）'];
+            continue;
+        }
         if ($data['code'] === '' || $data['name'] === '') {
             $errors[] = ['line' => $lineNo, 'reason' => '顧客コードと顧客名は必須です'];
             continue;
