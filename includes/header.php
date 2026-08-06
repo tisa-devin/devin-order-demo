@@ -26,6 +26,66 @@ function formatDate($date): string {
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
     <style>
+        :root {
+            --theme-main: #0d6efd;
+            --theme-hover: #0b5ed7;
+            --theme-nav: #0d6efd;
+            --theme-outline: var(--theme-main);
+            --theme-outline-hover-color: #fff;
+        }
+        [data-theme="green"] {
+            --theme-main: #198754;
+            --theme-hover: #157347;
+            --theme-nav: #198754;
+        }
+        [data-theme="orange"] {
+            --theme-main: #fd7e14;
+            --theme-hover: #e8690b;
+            --theme-nav: #fd7e14;
+        }
+        [data-theme="dark"] {
+            --theme-main: #495057;
+            --theme-hover: #5c636a;
+            --theme-nav: #212529;
+            --theme-outline: #adb5bd;
+            --theme-outline-hover-color: #212529;
+        }
+        [data-theme="pink"] {
+            --theme-main: #d63384;
+            --theme-hover: #b02a6c;
+            --theme-nav: #d63384;
+        }
+        .navbar.bg-primary { background-color: var(--theme-nav) !important; }
+        .btn-primary {
+            --bs-btn-bg: var(--theme-main);
+            --bs-btn-border-color: var(--theme-main);
+            --bs-btn-hover-bg: var(--theme-hover);
+            --bs-btn-hover-border-color: var(--theme-hover);
+            --bs-btn-active-bg: var(--theme-hover);
+            --bs-btn-active-border-color: var(--theme-hover);
+            --bs-btn-disabled-bg: var(--theme-main);
+            --bs-btn-disabled-border-color: var(--theme-main);
+        }
+        .btn-outline-primary {
+            --bs-btn-color: var(--theme-outline);
+            --bs-btn-border-color: var(--theme-outline);
+            --bs-btn-hover-bg: var(--theme-outline);
+            --bs-btn-hover-border-color: var(--theme-outline);
+            --bs-btn-hover-color: var(--theme-outline-hover-color);
+            --bs-btn-active-bg: var(--theme-outline);
+            --bs-btn-active-border-color: var(--theme-outline);
+            --bs-btn-active-color: var(--theme-outline-hover-color);
+        }
+        .theme-select {
+            width: auto;
+            min-width: 8rem;
+            background-color: rgba(255, 255, 255, 0.15);
+            color: #fff;
+            border-color: rgba(255, 255, 255, 0.4);
+        }
+        .theme-select option { color: #212529; }
+        [data-theme="dark"] .card.bg-warning { color: #212529; }
+        [data-theme="dark"] .theme-select { background-color: rgba(255, 255, 255, 0.1); }
         .navbar-brand { font-weight: bold; }
         .table th { white-space: nowrap; }
         .btn-action { padding: 0.25rem 0.5rem; font-size: 0.875rem; }
@@ -35,6 +95,27 @@ function formatDate($date): string {
             .container { max-width: 100% !important; }
         }
     </style>
+    <script>
+        var ThemeColor = {
+            themes: ['blue', 'green', 'orange', 'dark', 'pink'],
+            apply: function (theme) {
+                if (this.themes.indexOf(theme) < 0) theme = 'blue';
+                var root = document.documentElement;
+                root.setAttribute('data-theme', theme);
+                root.setAttribute('data-bs-theme', theme === 'dark' ? 'dark' : 'light');
+                return theme;
+            },
+            load: function () {
+                var saved = null;
+                try { saved = localStorage.getItem('themeColor'); } catch (e) {}
+                return this.apply(saved);
+            },
+            save: function (theme) {
+                try { localStorage.setItem('themeColor', this.apply(theme)); } catch (e) {}
+            }
+        };
+        ThemeColor.load();
+    </script>
 </head>
 <body>
 <nav class="navbar navbar-expand-lg navbar-dark bg-primary mb-4 no-print">
@@ -69,7 +150,27 @@ function formatDate($date): string {
                     <a class="nav-link" href="<?= BASE_PATH ?>/pages/sales/list.php">売上管理</a>
                 </li>
             </ul>
+            <div class="ms-auto">
+                <label class="visually-hidden" for="themeColorSelect">テーマカラー</label>
+                <select class="form-select form-select-sm theme-select" id="themeColorSelect">
+                    <option value="blue">ブルー</option>
+                    <option value="green">グリーン</option>
+                    <option value="orange">オレンジ</option>
+                    <option value="dark">ダーク</option>
+                    <option value="pink">ピンク</option>
+                </select>
+            </div>
         </div>
     </div>
 </nav>
+<script>
+    (function () {
+        var select = document.getElementById('themeColorSelect');
+        if (!select) return;
+        select.value = document.documentElement.getAttribute('data-theme') || 'blue';
+        select.addEventListener('change', function () {
+            ThemeColor.save(select.value);
+        });
+    })();
+</script>
 <div class="container">

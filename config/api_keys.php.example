@@ -1,0 +1,10 @@
+<?php
+/**
+ * APIキー設定のサンプル。
+ * このファイルを config/api_keys.php にコピーして実キーを記入する
+ * （api_keys.php は .gitignore 済みでコミットされない）。
+ * 環境変数 OPENAI_API_KEY が設定されている場合はそちらが優先される。
+ */
+return [
+    'openai_api_key' => '',
+];
