@@ -78,6 +78,8 @@ function formatDate($date): string {
             border-color: rgba(255, 255, 255, 0.4);
         }
         .theme-select option { color: #212529; }
+        [data-theme="dark"] .card.bg-warning { color: #212529; }
+        [data-theme="dark"] .theme-select { background-color: rgba(255, 255, 255, 0.1); }
         .navbar-brand { font-weight: bold; }
         .table th { white-space: nowrap; }
         .btn-action { padding: 0.25rem 0.5rem; font-size: 0.875rem; }
@@ -88,12 +90,25 @@ function formatDate($date): string {
         }
     </style>
     <script>
-        (function () {
-            var themes = ['blue', 'green', 'orange', 'dark', 'pink'];
-            var saved = null;
-            try { saved = localStorage.getItem('themeColor'); } catch (e) {}
-            document.documentElement.setAttribute('data-theme', themes.indexOf(saved) >= 0 ? saved : 'blue');
-        })();
+        var ThemeColor = {
+            themes: ['blue', 'green', 'orange', 'dark', 'pink'],
+            apply: function (theme) {
+                if (this.themes.indexOf(theme) < 0) theme = 'blue';
+                var root = document.documentElement;
+                root.setAttribute('data-theme', theme);
+                root.setAttribute('data-bs-theme', theme === 'dark' ? 'dark' : 'light');
+                return theme;
+            },
+            load: function () {
+                var saved = null;
+                try { saved = localStorage.getItem('themeColor'); } catch (e) {}
+                return this.apply(saved);
+            },
+            save: function (theme) {
+                try { localStorage.setItem('themeColor', this.apply(theme)); } catch (e) {}
+            }
+        };
+        ThemeColor.load();
     </script>
 </head>
 <body>
@@ -148,8 +163,7 @@ function formatDate($date): string {
         if (!select) return;
         select.value = document.documentElement.getAttribute('data-theme') || 'blue';
         select.addEventListener('change', function () {
-            document.documentElement.setAttribute('data-theme', select.value);
-            try { localStorage.setItem('themeColor', select.value); } catch (e) {}
+            ThemeColor.save(select.value);
         });
     })();
 </script>
