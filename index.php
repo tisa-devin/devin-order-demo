@@ -51,6 +51,20 @@ foreach ($stmt->fetchAll() as $row) {
     }
 }
 $trendLabels = array_map(fn($m) => date('Y/n月', strtotime($m . '-01')), array_keys($monthlyTrend));
+
+$orderStatusLabels = [
+    'ordered' => ['label' => '受注', 'color' => 'rgba(13, 110, 253, 0.7)'],
+    'in_progress' => ['label' => '進行中', 'color' => 'rgba(255, 193, 7, 0.7)'],
+    'completed' => ['label' => '完了', 'color' => 'rgba(25, 135, 84, 0.7)'],
+    'cancelled' => ['label' => 'キャンセル', 'color' => 'rgba(220, 53, 69, 0.7)'],
+];
+$statusCounts = array_fill_keys(array_keys($orderStatusLabels), 0);
+foreach ($pdo->query("SELECT status, COUNT(*) as count FROM orders GROUP BY status") as $row) {
+    if (array_key_exists($row['status'], $statusCounts)) {
+        $statusCounts[$row['status']] = (int)$row['count'];
+    }
+}
+$statusTotal = array_sum($statusCounts);
 ?>
 
 <h2 class="mb-4"><i class="bi bi-speedometer2"></i> ダッシュボード</h2>
@@ -83,12 +97,30 @@ $trendLabels = array_map(fn($m) => date('Y/n月', strtotime($m . '-01')), array_
     </div>
 </div>
 
-<div class="card mb-4">
-    <div class="card-header">
-        <i class="bi bi-bar-chart"></i> 月次売上推移（直近6ヶ月）
+<div class="row mb-4">
+    <div class="col-lg-8">
+        <div class="card h-100">
+            <div class="card-header">
+                <i class="bi bi-bar-chart"></i> 月次売上推移（直近6ヶ月）
+            </div>
+            <div class="card-body">
+                <canvas id="monthlySalesChart" height="140"></canvas>
+            </div>
+        </div>
     </div>
-    <div class="card-body">
-        <canvas id="monthlySalesChart" height="100"></canvas>
+    <div class="col-lg-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <i class="bi bi-pie-chart"></i> 受注ステータス別件数
+            </div>
+            <div class="card-body">
+                <?php if ($statusTotal === 0): ?>
+                    <p class="text-muted mb-0">受注データがありません</p>
+                <?php else: ?>
+                    <canvas id="orderStatusChart" height="260"></canvas>
+                <?php endif; ?>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -195,6 +227,37 @@ $trendLabels = array_map(fn($m) => date('Y/n月', strtotime($m . '-01')), array_
                 }
             }
         });
+
+        var statusCanvas = document.getElementById('orderStatusChart');
+        if (statusCanvas) {
+            new Chart(statusCanvas, {
+                type: 'pie',
+                data: {
+                    labels: <?= json_encode(array_column($orderStatusLabels, 'label'), JSON_UNESCAPED_UNICODE) ?>,
+                    datasets: [{
+                        data: <?= json_encode(array_values($statusCounts)) ?>,
+                        backgroundColor: <?= json_encode(array_column($orderStatusLabels, 'color')) ?>
+
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom' },
+                        tooltip: {
+                            callbacks: {
+                                label: function (ctx) {
+                                    var total = ctx.dataset.data.reduce(function (a, b) { return a + b; }, 0);
+                                    var pct = total ? Math.round(ctx.parsed / total * 100) : 0;
+                                    return ctx.label + ': ' + formatter.format(ctx.parsed) + '件 (' + pct + '%)';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
     })();
 </script>
 
