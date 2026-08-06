@@ -382,7 +382,11 @@ calculateTotals();
         button.disabled = true;
         status.textContent = '抽出中...';
         try {
-            const res = await fetch('extract_items.php', { method: 'POST', body: formData });
+            // Basic認証の資格情報を含むURLからは fetch できないため除去する
+            const endpoint = new URL('extract_items.php', location.href);
+            endpoint.username = '';
+            endpoint.password = '';
+            const res = await fetch(endpoint.toString(), { method: 'POST', body: formData });
             const data = await res.json();
             if (!res.ok) {
                 status.textContent = 'エラー: ' + (data.error || res.status);
