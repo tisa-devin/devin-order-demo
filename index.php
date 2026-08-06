@@ -52,6 +52,22 @@ foreach ($stmt->fetchAll() as $row) {
 }
 $trendLabels = array_map(fn($m) => str_replace('-', '/', $m), array_keys($monthlyTrend));
 $trendValues = array_values($monthlyTrend);
+
+$orderStatuses = [
+    'ordered' => ['label' => '受注', 'color' => '#0d6efd'],
+    'in_progress' => ['label' => '進行中', 'color' => '#ffc107'],
+    'completed' => ['label' => '完了', 'color' => '#198754'],
+    'cancelled' => ['label' => 'キャンセル', 'color' => '#dc3545'],
+];
+$statusCounts = array_fill_keys(array_keys($orderStatuses), 0);
+foreach ($pdo->query("SELECT status, COUNT(*) as count FROM orders GROUP BY status") as $row) {
+    if (array_key_exists($row['status'], $statusCounts)) {
+        $statusCounts[$row['status']] = (int)$row['count'];
+    }
+}
+$statusChartLabels = array_column($orderStatuses, 'label');
+$statusChartColors = array_column($orderStatuses, 'color');
+$statusChartValues = array_values($statusCounts);
 ?>
 
 <h2 class="mb-4"><i class="bi bi-speedometer2"></i> ダッシュボード</h2>
@@ -84,12 +100,26 @@ $trendValues = array_values($monthlyTrend);
     </div>
 </div>
 
-<div class="card mb-4">
-    <div class="card-header">
-        <i class="bi bi-bar-chart"></i> 月次売上推移（直近6ヶ月）
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card mb-4">
+            <div class="card-header">
+                <i class="bi bi-bar-chart"></i> 月次売上推移（直近6ヶ月）
+            </div>
+            <div class="card-body">
+                <canvas id="monthlySalesChart" height="140"></canvas>
+            </div>
+        </div>
     </div>
-    <div class="card-body">
-        <canvas id="monthlySalesChart" height="100"></canvas>
+    <div class="col-lg-4">
+        <div class="card mb-4">
+            <div class="card-header">
+                <i class="bi bi-pie-chart"></i> 受注ステータス別件数
+            </div>
+            <div class="card-body">
+                <canvas id="orderStatusChart" height="280"></canvas>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -195,6 +225,31 @@ $trendValues = array_values($monthlyTrend);
                     y: {
                         beginAtZero: true,
                         ticks: { callback: formatYen }
+                    }
+                }
+            }
+        });
+
+        new Chart(document.getElementById('orderStatusChart'), {
+            type: 'pie',
+            data: {
+                labels: <?= json_encode($statusChartLabels, JSON_UNESCAPED_UNICODE) ?>,
+                datasets: [{
+                    data: <?= json_encode($statusChartValues) ?>,
+                    backgroundColor: <?= json_encode($statusChartColors) ?>
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'bottom' },
+                    tooltip: {
+                        callbacks: {
+                            label: function (context) {
+                                return context.label + ': ' + Number(context.parsed).toLocaleString('ja-JP') + '件';
+                            }
+                        }
                     }
                 }
             }
