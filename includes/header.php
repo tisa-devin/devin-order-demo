@@ -31,6 +31,7 @@ function formatDate($date): string {
             --theme-main-dark: #0b5ed7;
             --theme-nav: var(--theme-main);
             --theme-outline: var(--theme-main);
+            --theme-chart: var(--theme-main);
         }
         html[data-theme="green"] { --theme-main: #198754; --theme-main-dark: #157347; }
         html[data-theme="orange"] { --theme-main: #fd7e14; --theme-main-dark: #e8690b; }
@@ -39,6 +40,7 @@ function formatDate($date): string {
             --theme-main-dark: #5c636a;
             --theme-nav: #212529;
             --theme-outline: #adb5bd;
+            --theme-chart: #4dabf7;
         }
         html[data-theme="dark"] .card-header { background-color: #2b3035; }
         html[data-theme="dark"] .btn-outline-primary { --bs-btn-hover-color: #212529; }
@@ -141,6 +143,7 @@ function formatDate($date): string {
             document.documentElement.setAttribute('data-theme', select.value);
             document.documentElement.setAttribute('data-bs-theme', select.value === 'dark' ? 'dark' : 'light');
             localStorage.setItem('themeColor', select.value);
+            window.dispatchEvent(new CustomEvent('themechange', { detail: { theme: select.value } }));
         });
     })();
 </script>

@@ -32,6 +32,27 @@ $stmt = $pdo->query("
     LIMIT 10
 ");
 $pendingPurchases = $stmt->fetchAll();
+
+$monthlyTrend = [];
+for ($i = 5; $i >= 0; $i--) {
+    $month = date('Y-m', strtotime("-{$i} month", strtotime(date('Y-m-01'))));
+    $monthlyTrend[$month] = 0;
+}
+$trendFrom = array_key_first($monthlyTrend) . '-01';
+$stmt = $pdo->prepare("
+    SELECT strftime('%Y-%m', sales_date) as month, COALESCE(SUM(total_amount), 0) as total
+    FROM sales
+    WHERE sales_date >= ?
+    GROUP BY month
+");
+$stmt->execute([$trendFrom]);
+foreach ($stmt->fetchAll() as $row) {
+    if (array_key_exists($row['month'], $monthlyTrend)) {
+        $monthlyTrend[$row['month']] = (int)$row['total'];
+    }
+}
+$trendLabels = array_map(fn($month) => date('Y/m', strtotime($month . '-01')), array_keys($monthlyTrend));
+$trendValues = array_values($monthlyTrend);
 ?>
 
 <h2 class="mb-4"><i class="bi bi-speedometer2"></i> ダッシュボード</h2>
@@ -61,6 +82,15 @@ $pendingPurchases = $stmt->fetchAll();
                 <h2 class="mb-0"><?= count($pendingPurchases) ?>件</h2>
             </div>
         </div>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">
+        <i class="bi bi-bar-chart"></i> 月次売上推移（直近6ヶ月）
+    </div>
+    <div class="card-body">
+        <canvas id="monthlySalesChart" height="100"></canvas>
     </div>
 </div>
 
@@ -132,5 +162,52 @@ $pendingPurchases = $stmt->fetchAll();
         </div>
     </div>
 </div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+    (function () {
+        var formatter = new Intl.NumberFormat('ja-JP');
+        function chartColor() {
+            return getComputedStyle(document.documentElement).getPropertyValue('--theme-chart').trim();
+        }
+        var chart = new Chart(document.getElementById('monthlySalesChart'), {
+            type: 'bar',
+            data: {
+                labels: <?= json_encode($trendLabels, JSON_UNESCAPED_UNICODE) ?>,
+                datasets: [{
+                    label: '売上金額',
+                    data: <?= json_encode($trendValues) ?>,
+                    backgroundColor: chartColor()
+                }]
+            },
+            options: {
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function (context) {
+                                return '\u00a5' + formatter.format(context.parsed.y);
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function (value) {
+                                return '\u00a5' + formatter.format(value);
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        window.addEventListener('themechange', function () {
+            chart.data.datasets[0].backgroundColor = chartColor();
+            chart.update();
+        });
+    })();
+</script>
 
 <?php require_once __DIR__ . '/includes/footer.php'; ?>
